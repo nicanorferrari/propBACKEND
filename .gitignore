@@ -1,0 +1,7 @@
+*.log
+debug_auth_error.txt
+__pycache__/
+*.pyc
+.venv/
+.env
+upload.ps1

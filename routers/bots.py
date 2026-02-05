@@ -1,0 +1,474 @@
+
+import os
+import requests
+import logging
+import uuid
+from fastapi import APIRouter, Depends, HTTPException, Body
+from sqlalchemy.orm import Session
+from database import get_db
+from auth import get_current_user_email
+import models
+import schemas
+
+router = APIRouter()
+logger = logging.getLogger("urbanocrm.bots")
+
+DEFAULT_BOT_IDENTITY = """Eres Agustina, una asesora inmobiliaria de élite en Rosario, Argentina, trabajando para PropCRM.
+
+- IDENTIDAD:
+  - No sos un robot, ni un asistente virtual genérico. Sos Agustina.
+  - Hablas con acento argentino marcado, con entonación rioplatense ("Che", "Viste", "Te cuento", "Bárbaro", "Dale").
+  - Tu tono es cálido, empático y proactivo. Te preocupas genuinamente por encontrar la propiedad ideal.
+  - Conoces Rosario: mencionas detalles de zonas (Pichincha, Alberdi, Centro, Funes) como un local.
+
+- REGLAS DE CONVERSACIÓN (HUMANIZACIÓN):
+  1. **Cero Robot**: Evita frases como "He encontrado 3 resultados". Di: "Mira, justo entraron estas opciones que encajan con lo que buscás...".
+  2. **Variedad**: No uses siempre la misma estructura. A veces sé breve, a veces explayate.
+  3. **Memoria Activa**: Si el usuario mencionó antes que tiene hijos o perro, ÚSALO.
+  4. **Honestidad Brutal**: Si no hay nada bueno, no inventes. "La verdad, por ese precio en esa zona está difícil hoy, pero ¿qué te parece si miramos en...?"
+  5. **Call to Action Suave**: No presiones. Invita. "¿Te imaginás viviendo acá? Si querés la vamos a ver".
+"""
+
+def get_default_business_hours():
+    days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    return {day: {"start": "00:00", "end": "23:59", "enabled": True} for day in days}
+
+EVO_URL = os.getenv("EVO_URL", "").rstrip("/")
+EVO_KEY = os.getenv("EVO_KEY", "")
+# Configuración de Webhook (Gestionada internamente por el sistema)
+BOT_WEBHOOK_URL = os.getenv("BOT_WEBHOOK_URL", "") # Se recomienda dejar vacío si se procesa directamente en el backend
+
+def call_evolution(method: str, endpoint: str, data: dict = None):
+    if not EVO_URL or not EVO_KEY: return None
+    headers = {"apikey": EVO_KEY, "Content-Type": "application/json"}
+    url = f"{EVO_URL}{endpoint}"
+    try:
+        response = requests.request(method, url, headers=headers, json=data, timeout=15)
+        return response
+    except Exception as e:
+        logger.error(f"Evolution API Error: {e}")
+        return None
+
+@router.get("/", response_model=schemas.BotResponse)
+def get_bot_config(platform: str, email: str = Depends(get_current_user_email), db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.email == email).first()
+    bot = db.query(models.Bot).filter(models.Bot.user_id == user.id, models.Bot.platform == platform).first()
+    
+    if not bot:
+        return {
+            "id": 0,
+            "platform": platform,
+            "status": "disconnected",
+            "system_prompt": DEFAULT_BOT_IDENTITY,
+            "business_hours": get_default_business_hours(),
+            "tags": [],
+            "instance_name": None,
+            "config": { "voice": {"enabled": True, "voice_name": "Kore"}, "notifications": {"remind_1d": False, "remind_1h": True} }
+        }
+    
+    # Asegurar nombre de instancia estándar
+    instance_name = f"urbano_crm_user_{user.id}"
+    if bot.instance_name != instance_name:
+        bot.instance_name = instance_name
+        db.commit()
+    
+    # Verificar estado real
+    qr_code = None
+    state_resp = call_evolution("GET", f"/instance/connectionState/{instance_name}")
+    
+    new_status = "disconnected"
+    if state_resp and state_resp.status_code == 200:
+        state_data = state_resp.json()
+        current_state = state_data.get("instance", {}).get("state") or state_data.get("state")
+        
+        if current_state == "open":
+            new_status = "connected"
+        elif current_state in ["connecting", "connecting_delay", "close"]:
+            new_status = "connecting"
+            # Si estamos conectando, intentamos recuperar el QR
+            connect_resp = call_evolution("GET", f"/instance/connect/{instance_name}")
+            if connect_resp and connect_resp.status_code == 200:
+                c_data = connect_resp.json()
+                qr_code = (
+                    c_data.get("base64") or 
+                    c_data.get("qrcode", {}).get("base64") or 
+                    c_data.get("instance", {}).get("data") or
+                    c_data.get("code")
+                )
+    
+    # Si detectamos un cambio de estado, actualizamos la DB
+    if bot.status != new_status:
+        bot.status = new_status
+        db.commit()
+        db.refresh(bot)
+            
+    # Convertir a dict para incluir qrCode
+    bot_dict = {
+        "id": bot.id,
+        "platform": bot.platform,
+        "status": bot.status,
+        "system_prompt": bot.system_prompt or DEFAULT_BOT_IDENTITY,
+        "business_hours": bot.business_hours or get_default_business_hours(),
+        "tags": bot.tags or [],
+        "config": bot.config or { "voice": {"enabled": True, "voice_name": "Kore"}, "notifications": {"remind_1d": False, "remind_1h": True} }, # Ensure dict
+        "instance_name": bot.instance_name,
+        "is_active": bot.is_active,
+        "qrCode": qr_code
+    }
+                
+    return bot_dict
+
+@router.post("/configure")
+def configure_bot(config: schemas.BotCreate, email: str = Depends(get_current_user_email), db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.email == email).first()
+    bot = db.query(models.Bot).filter(models.Bot.user_id == user.id, models.Bot.platform == config.platform).first()
+    
+    if not bot:
+        bot = models.Bot(
+            user_id=user.id,
+            platform=config.platform,
+            system_prompt=config.system_prompt,
+            business_hours=config.business_hours,
+            tags=config.tags,
+            config=config.config
+        )
+        db.add(bot)
+    else:
+        bot.system_prompt = config.system_prompt
+        bot.business_hours = config.business_hours
+        bot.tags = config.tags
+        bot.config = config.config
+    
+    db.commit()
+    return {"status": "ok", "message": "Configuración guardada"}
+
+@router.post("/connect")
+def connect_bot(request: schemas.BotConnectRequest, email: str = Depends(get_current_user_email), db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.email == email).first()
+    bot = db.query(models.Bot).filter(models.Bot.user_id == user.id, models.Bot.platform == request.platform).first()
+    
+    if not bot:
+        bot = models.Bot(user_id=user.id, platform=request.platform, status="disconnected")
+        db.add(bot)
+        db.flush()
+
+    # Nombre de instancia estándar por usuario
+    instance_name = f"urbano_crm_user_{user.id}"
+    bot.instance_name = instance_name
+    db.commit()
+
+    # 1. Verificar estado actual
+    state_resp = call_evolution("GET", f"/instance/connectionState/{instance_name}")
+    if state_resp and state_resp.status_code == 200:
+        state_data = state_resp.json()
+        current_state = state_data.get("instance", {}).get("state") or state_data.get("state")
+        if current_state == "open":
+            bot.status = "connected"
+            db.commit()
+            return {"qrCode": None, "instanceName": instance_name, "status": "connected"}
+
+    # 2. Asegurar que la instancia existe (intentar crear)
+    create_payload = {
+        "instanceName": instance_name,
+        "token": f"bot_tk_{user.id}",
+        "qrcode": True,
+        "integration": "WHATSAPP-BAILEYS",
+        "webhook": {
+            "enabled": True,
+            "url": BOT_WEBHOOK_URL,
+            "events": ["MESSAGES_UPSERT", "CONNECTION_UPDATE"]
+        }
+    }
+    create_resp = call_evolution("POST", "/instance/create", create_payload)
+    
+    # Manejar caso de éxito o si ya existe (403 suele ser 'ya existe')
+    if create_resp and create_resp.status_code in [200, 201]:
+        data = create_resp.json()
+        # Búsqueda exhaustiva del QR en el JSON de creación
+        qr = (
+            data.get("instance", {}).get("data") or 
+            data.get("qrcode", {}).get("base64") or 
+            data.get("base64") or 
+            data.get("code")
+        )
+        if qr:
+            bot.status = "connecting"
+            db.commit()
+            return {"qrCode": qr, "instanceName": instance_name, "status": "connecting"}
+    elif create_resp and create_resp.status_code != 403:
+        error_msg = create_resp.text
+        logger.error(f"Error creando instancia: {create_resp.status_code} - {error_msg}")
+        raise HTTPException(500, f"Error en Evolution API: {error_msg}")
+
+    # 3. Si ya existía o no vino el QR, pedirlo explícitamente
+    import time
+    time.sleep(1) 
+    connect_resp = call_evolution("GET", f"/instance/connect/{instance_name}")
+    if connect_resp and connect_resp.status_code == 200:
+        data = connect_resp.json()
+        # Búsqueda exhaustiva del QR en el JSON de conexión
+        qr = (
+            data.get("base64") or 
+            data.get("qrcode", {}).get("base64") or 
+            data.get("instance", {}).get("data") or
+            data.get("code")
+        )
+        if qr:
+            bot.status = "connecting"
+            db.commit()
+            return {"qrCode": qr, "instanceName": instance_name, "status": "connecting"}
+    elif connect_resp:
+        logger.error(f"Error al conectar: {connect_resp.status_code} - {connect_resp.text}")
+
+    # Verificación final de estado
+    state_resp = call_evolution("GET", f"/instance/connectionState/{instance_name}")
+    if state_resp and state_resp.status_code == 200:
+        state_data = state_resp.json()
+        if (state_data.get("instance", {}).get("state") or state_data.get("state")) == "open":
+            bot.status = "connected"
+            db.commit()
+            return {"qrCode": None, "instanceName": instance_name, "status": "connected"}
+
+    raise HTTPException(500, "No se pudo obtener el QR. Por favor, asegúrate de que Evolution API esté activa.")
+
+@router.post("/disconnect")
+def disconnect_bot(request: schemas.BotConnectRequest, email: str = Depends(get_current_user_email), db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.email == email).first()
+    bot = db.query(models.Bot).filter(models.Bot.user_id == user.id, models.Bot.platform == request.platform).first()
+    
+    if not bot or not bot.instance_name:
+        raise HTTPException(400, "No hay instancia activa para desconectar")
+
+    # 1. Intentar hacer logout/delete en Evolution API
+    print(f"DEBUG: Intentando borrar instancia {bot.instance_name} en Evolution API")
+    del_resp = call_evolution("DELETE", f"/instance/delete/{bot.instance_name}")
+    if del_resp:
+        print(f"DEBUG: Respuesta Evolution API: {del_resp.status_code} - {del_resp.text}")
+    else:
+        print("DEBUG: Evolution API no respondió o el request falló")
+    
+    # 2. Actualizar DB independientemente del resultado de la API para permitir reintento
+    bot.status = "disconnected"
+    bot.qrCode = None
+    db.commit()
+    
+    return {"status": "ok", "message": "Instancia desconectada"}
+
+# --- New Bot Logic Endpoints ---
+
+@router.post("/rag-search")
+def bot_search_properties(filters: dict = Body(...), db: Session = Depends(get_db)):
+    """
+    Búsqueda simplificada para Bots/IA.
+    Recibe filtros (operation, type, budget, zone, rooms) y devuelve un resumen.
+    """
+    query = db.query(models.Property).filter(models.Property.status == "Active")
+
+    # 1. Filtros Básicos
+    if filters.get("operation"):
+        # Mapping simple: "venta" -> "Sale", "alquiler" -> "Rent"
+        op = filters["operation"].lower()
+        if "venta" in op or "buy" in op: query = query.filter(models.Property.operation == "Sale")
+        elif "alquil" in op or "rent" in op: query = query.filter(models.Property.operation == "Rent")
+    
+    if filters.get("type"):
+        # Búsqueda inexacta: "casa" in "House", "depto" in "Apartment"
+        t = filters["type"].lower()
+        if "casa" in t: query = query.filter(models.Property.type == "House")
+        elif "depto" in t or "departamento" in t: query = query.filter(models.Property.type == "Apartment")
+        elif "ph" in t: query = query.filter(models.Property.type == "PH")
+        elif "terreno" in t or "lote" in t: query = query.filter(models.Property.type == "Land")
+
+    if filters.get("rooms"):
+        try:
+            r = int(filters["rooms"])
+            query = query.filter(models.Property.rooms >= r)
+        except: pass
+
+    if filters.get("price_min"):
+        query = query.filter(models.Property.price >= float(filters["price_min"]))
+    
+    if filters.get("price_max"):
+        query = query.filter(models.Property.price <= float(filters["price_max"]))
+
+    if filters.get("neighborhood"):
+        # Búsqueda Case-Insensitive en Postgres
+        n = f"%{filters['neighborhood']}%"
+        query = query.filter(models.Property.neighborhood.ilike(n))
+
+    # Limitar resultados para no saturar el contexto de la IA
+    results = query.limit(5).all()
+    
+    # Formatear salida "light" para LLM
+    output = []
+    for p in results:
+        output.append({
+            "id": p.id,
+            "title": p.title,
+            "price": f"{p.currency} {p.price:,.0f}",
+            "location": f"{p.address}, {p.neighborhood}",
+            "features": f"{p.rooms} amb, {p.surface}m2",
+            "link": f"https://inmobiliaria.com/p/{p.code}", # Link ficticio por ahora
+            "description": (p.description or "")[:200] + "..." # Truncar
+        })
+    
+    return output
+
+@router.get("/{instance_name}/availability")
+def check_bot_availability(instance_name: str, date: str = None, days: int = 3, property_id: int = None, db: Session = Depends(get_db)):
+    """
+    Endpoint público (o protegido por token estático) para consultar agenda.
+    Devuelve slots libres.
+    - Si se especifica property_id: Usa los horarios y límites de esa propiedad.
+    - Si no: Usa los horarios generales del Bot.
+    """
+    bot = db.query(models.Bot).filter(models.Bot.instance_name == instance_name).first()
+    if not bot: raise HTTPException(404, "Bot instance not found")
+
+    user_id = bot.user_id # El agente dueño del bot
+    
+    # Si hay propiedad, cargamos su config
+    prop_config = None
+    if property_id:
+        prop = db.query(models.Property).get(property_id)
+        if not prop: raise HTTPException(404, "Property not found")
+        prop_config = prop
+    
+    # Fecha base (hoy o la solicitada)
+    from datetime import datetime, timedelta
+    start_date = datetime.strptime(date, "%Y-%m-%d") if date else datetime.now()
+    
+    available_slots = []
+    
+    # Analizar próximos N días
+    for i in range(days):
+        current_day = start_date + timedelta(days=i)
+        day_str = current_day.strftime("%a") # Mon, Tue...
+        date_str = current_day.strftime("%Y-%m-%d")
+
+        # 1. Determinar Configuración de Horario (Propiedad vs Bot)
+        if prop_config:
+            # Usar configuración de la propiedad si existe para ese día
+            # La estructura es { "Mon": { "enabled": true, "start": "09:00", "end": "10:00" } }
+            schedule = prop_config.visit_availability.get(day_str)
+            if not schedule: schedule = {"enabled": False} # Default closed per property logic if missing
+        else:
+            # Fallback a horario del bot
+            schedule = bot.business_hours.get(day_str)
+
+        if not schedule or not schedule.get("enabled"):
+            continue # Día no laboral / no disponible
+
+        try:
+            work_start = datetime.strptime(f"{date_str} {schedule['start']}", "%Y-%m-%d %H:%M")
+            work_end = datetime.strptime(f"{date_str} {schedule['end']}", "%Y-%m-%d %H:%M")
+        except ValueError:
+            continue # Error en formato de hora
+
+        # 2. Buscar eventos RELEVANTES:
+        # - El bot es "General", no debe bloquearse por la agenda personal de un agente.
+        # - Solo nos importa la Ocupación de la Propiedad (Concurrencia).
+        
+        query_filters = [
+            models.CalendarEvent.start_time >= work_start,
+            models.CalendarEvent.start_time < work_end,
+            models.CalendarEvent.status != "CANCELLED"
+        ]
+        
+        # Filtro principal: SOLO Propiedad
+        # Si no hay propiedad configurada, no podemos validar cupo, asi que asumimos libre (o logica default futura)
+        if property_id:
+             query_filters.append(models.CalendarEvent.property_id == prop_config.id)
+        else:
+             # Si es una consulta génerica sin propiedad, ahi SI miramos el calendario del agente por defecto?
+             # El usuario pidió: "calendario general... dentista no deberia bloquear"
+             # Por seguridad, si no es propiedad específica, no bloqueamos nada (Open Calendar) o mantenemos agente
+             # Decisión: Si no hay propiedad, mantenemos comportamiento previo (agente), si hay propiedad, SOLO propiedad.
+             query_filters.append(models.CalendarEvent.agent_id == user_id)
+
+        events = db.query(models.CalendarEvent).filter(*query_filters).all()
+
+        # 3. Calcular huecos (bloques de 30 min o visit_duration)
+        slot_duration_minutes = prop_config.visit_duration if prop_config else 30
+        
+        curr_slot = work_start
+        while curr_slot + timedelta(minutes=slot_duration_minutes) <= work_end:
+            slot_end = curr_slot + timedelta(minutes=slot_duration_minutes)
+            
+            # Verificar colisión
+            # Lógica:
+            # - Si NO es propiedad: cualquier evento bloquea.
+            # - Si ES propiedad:
+            #    - Eventos de OTRA cosa bloquean.
+            #    - Eventos de ESTA propiedad cuentan para el cupo (max_simultaneous).
+            
+            is_blocked = False
+            simultaneous_count = 0
+            
+            for e in events:
+                # Si hay solapamiento de tiempo
+                if not (slot_end <= e.start_time or curr_slot >= e.end_time):
+                    if prop_config:
+                        # Solo contamos eventos de ESTA propiedad
+                        if e.property_id == prop_config.id:
+                            simultaneous_count += 1
+                        # Ignoramos eventos personales u otras propiedades
+                    else:
+                        is_blocked = True
+                        break
+            
+            # Validar cupo si es propiedad
+            if prop_config:
+                if simultaneous_count >= prop_config.max_simultaneous_visits:
+                    is_blocked = True
+                else: 
+                    # IMPORTANTE: Si no se alcanzó el cupo, está LIBRE, sin importar eventos personales
+                    is_blocked = False
+            
+            if not is_blocked:
+                available_slots.append({
+                    "date": date_str,
+                    "day": day_str,
+                    "start": curr_slot.strftime("%H:%M"),
+                    "end": slot_end.strftime("%H:%M")
+                })
+            
+            curr_slot = slot_end # Avanzar al siguiente bloque contiguous
+            # Ojo: si queremos slots cada 30 min pero visitas de 60, el step debería ser 30 o 60?
+            # Por simplicidad, step = duration.
+
+    return {"available_slots": available_slots}
+
+
+@router.get("/{instance_name}/public-config")
+def get_bot_public_config(instance_name: str, db: Session = Depends(get_db)):
+    """
+    Permite al Motor de IA leer el System Prompt y Configuración actual sin autenticación de usuario,
+    solo conociendo el nombre de la instancia.
+    """
+    bot = db.query(models.Bot).filter(models.Bot.instance_name == instance_name).first()
+    if not bot: raise HTTPException(404, "Bot not found")
+    
+    return {
+        "system_prompt": bot.system_prompt or DEFAULT_BOT_IDENTITY,
+        "business_hours": bot.business_hours or get_default_business_hours(),
+        "tags": bot.tags or [],
+        "config": bot.config or { "voice": {"enabled": True, "voice_name": "Kore"}, "notifications": {"remind_1d": False, "remind_1h": True} },
+        "role": "agent"
+    }
+
+@router.get("/conversations/list")
+def get_bot_conversations(skip: int = 0, limit: int = 20, db: Session = Depends(get_db)):
+    """
+    Lista las conversaciones activas del bot.
+    """
+    convs = db.query(models.BotConversation).order_by(models.BotConversation.last_message_at.desc()).offset(skip).limit(limit).all()
+    return convs
+
+@router.get("/conversations/{phone}/messages")
+def get_conversation_messages(phone: str, limit: int = 50, db: Session = Depends(get_db)):
+    """
+    Obtiene el historial de chat de una conversación específica.
+    """
+    msgs = db.query(models.ChatHistory).filter(models.ChatHistory.sender_id == phone).order_by(models.ChatHistory.created_at.desc()).limit(limit).all()
+    return msgs[::-1]
