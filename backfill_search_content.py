@@ -35,9 +35,8 @@ def backfill():
                 # 2. Save to search_content
                 prop.search_content = context_str
                 
-                # 3. Regenerate Embedding (to match the new context with address)
-                # Add a small delay to avoid rate limits if many
-                vector = ai_service.get_embedding(context_str)
+                # 3. Regenerate Embedding (task_type=retrieval_document)
+                vector = ai_service.get_embedding(context_str, task_type="retrieval_document")
                 
                 if vector:
                     prop.embedding_descripcion = vector

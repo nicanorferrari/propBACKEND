@@ -343,3 +343,88 @@ class BotResponse(BotBase):
 
 class BotConnectRequest(BaseModel):
     platform: str
+
+# Sales Pipeline Schemas
+class PipelineStageBase(BaseModel):
+    name: str
+    order: int = 0
+    color: Optional[str] = None
+
+class PipelineStageCreate(PipelineStageBase):
+    pass
+
+class PipelineStageResponse(PipelineStageBase):
+    id: int
+    pipeline_id: int
+    class Config:
+        from_attributes = True
+
+class PipelineBase(BaseModel):
+    name: str
+    is_active: bool = True
+
+class PipelineCreate(PipelineBase):
+    stages: Optional[List[PipelineStageCreate]] = []
+
+class PipelineResponse(PipelineBase):
+    id: int
+    stages: List[PipelineStageResponse]
+    class Config:
+        from_attributes = True
+
+class DealBase(BaseModel):
+    title: str
+    value: float = 0.0
+    currency: str = "USD"
+    pipeline_stage_id: int
+    property_id: Optional[int] = None
+    contact_id: Optional[int] = None
+    assigned_agent_id: Optional[int] = None
+    priority: str = "MEDIUM"
+    status: str = "OPEN"
+    requirements: Optional[str] = None
+    close_date: Optional[datetime] = None
+
+class DealCreate(DealBase):
+    pass
+
+class DealUpdate(BaseModel):
+    title: Optional[str] = None
+    value: Optional[float] = None
+    currency: Optional[str] = None
+    pipeline_stage_id: Optional[int] = None
+    property_id: Optional[int] = None
+    contact_id: Optional[int] = None
+    assigned_agent_id: Optional[int] = None
+    priority: Optional[str] = None
+    status: Optional[str] = None
+    requirements: Optional[str] = None
+    close_date: Optional[datetime] = None
+
+class DealCommentResponse(BaseModel):
+    id: int
+    content: str
+    user_id: Optional[int] = None
+    created_at: Optional[datetime] = None
+    class Config:
+        from_attributes = True
+
+class DealHistoryResponse(BaseModel):
+    id: int
+    from_stage_id: Optional[int] = None
+    to_stage_id: int
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
+class DealResponse(DealBase):
+    id: int
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    property: Optional[PropertyResponse] = None
+    contact: Optional[ContactResponse] = None
+    agent: Optional[UserResponse] = None
+    comments: List[DealCommentResponse] = []
+    history: List[DealHistoryResponse] = []
+    class Config:
+        from_attributes = True

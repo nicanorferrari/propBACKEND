@@ -119,8 +119,9 @@ class ContactInteraction(Base):
     id = Column(Integer, primary_key=True, index=True)
     contact_id = Column(Integer, ForeignKey("contacts.id"))
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    type = Column(String) # CALL, WHATSAPP, EMAIL, MEETING, OTHER
+    type = Column(String) # CALL, WHATSAPP, EMAIL, MEETING, OTHER, LEAD_CREATED
     notes = Column(Text, nullable=True)
+    deal_id = Column(Integer, ForeignKey("deals.id"), nullable=True)
     date = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc))
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc))
 
@@ -346,3 +347,77 @@ class ChatHistory(Base):
     role = Column(String)
     parts = Column(JSON)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+class Pipeline(Base):
+    __tablename__ = "pipelines"
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True)
+    name = Column(String)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    
+    stages = relationship("PipelineStage", back_populates="pipeline", order_by="PipelineStage.order")
+
+class PipelineStage(Base):
+    __tablename__ = "pipeline_stages"
+    id = Column(Integer, primary_key=True, index=True)
+    pipeline_id = Column(Integer, ForeignKey("pipelines.id"))
+    name = Column(String)
+    order = Column(Integer, default=0)
+    color = Column(String, nullable=True)
+    
+    pipeline = relationship("Pipeline", back_populates="stages")
+    deals = relationship("Deal", back_populates="stage")
+
+class Deal(Base):
+    __tablename__ = "deals"
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True)
+    title = Column(String)
+    value = Column(Float, default=0.0)
+    currency = Column(String, default="USD")
+    
+    pipeline_stage_id = Column(Integer, ForeignKey("pipeline_stages.id"))
+    property_id = Column(Integer, ForeignKey("properties.id", ondelete="SET NULL"), nullable=True)
+    contact_id = Column(Integer, ForeignKey("contacts.id", ondelete="SET NULL"), nullable=True)
+    assigned_agent_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    
+    priority = Column(String, default="MEDIUM") # LOW, MEDIUM, HIGH
+    status = Column(String, default="OPEN") # OPEN, WON, LOST
+    requirements = Column(Text, nullable=True) # Lo que busca el cliente
+    
+    close_date = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    stage = relationship("PipelineStage", back_populates="deals")
+    property = relationship("Property")
+    contact = relationship("Contact")
+    agent = relationship("User")
+    comments = relationship("DealComment", back_populates="deal", cascade="all, delete-orphan")
+    history = relationship("DealHistory", back_populates="deal", cascade="all, delete-orphan")
+
+class DealComment(Base):
+    __tablename__ = "deal_comments"
+    id = Column(Integer, primary_key=True, index=True)
+    deal_id = Column(Integer, ForeignKey("deals.id", ondelete="CASCADE"))
+    user_id = Column(Integer, ForeignKey("users.id"))
+    content = Column(Text)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    
+    deal = relationship("Deal", back_populates="comments")
+    user = relationship("User")
+
+class DealHistory(Base):
+    __tablename__ = "deal_history"
+    id = Column(Integer, primary_key=True, index=True)
+    deal_id = Column(Integer, ForeignKey("deals.id", ondelete="CASCADE"))
+    from_stage_id = Column(Integer, ForeignKey("pipeline_stages.id"), nullable=True)
+    to_stage_id = Column(Integer, ForeignKey("pipeline_stages.id"))
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    
+    deal = relationship("Deal", back_populates="history")
+    from_stage = relationship("PipelineStage", foreign_keys=[from_stage_id])
+    to_stage = relationship("PipelineStage", foreign_keys=[to_stage_id])
+    user = relationship("User")

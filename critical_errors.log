@@ -1,0 +1,2 @@
+2026-02-06 08:27:40,465 - urbanocrm.ai_service - ERROR - AI ERROR: Failed to get embedding from Gemini: 404 models/text-embedding-004 is not found for API version v1beta, or is not supported for embedContent. Call ListModels to see the list of available models and their supported methods.
+2026-02-06 08:27:47,831 - urbanocrm.ai_service - ERROR - AI ERROR: Failed to get embedding from Gemini: 404 models/text-embedding-004 is not found for API version v1beta, or is not supported for embedContent. Call ListModels to see the list of available models and their supported methods.

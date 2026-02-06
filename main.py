@@ -15,7 +15,7 @@ from database import engine, Base, SessionLocal
 import models
 
 # Importación de Routers
-from routers import auth, users, properties, developments, contacts, branches, config, media, google, calendars, team, import_data, whatsapp, monitoring, ai_matching, ai_service, bots
+from routers import auth, users, properties, developments, contacts, branches, config, media, google, calendars, team, import_data, whatsapp, monitoring, ai_matching, ai_service, bots, opportunities
 
 import logging
 from logging.handlers import RotatingFileHandler
@@ -181,6 +181,7 @@ app.include_router(whatsapp.router, prefix="/api/whatsapp", tags=["WhatsApp"])
 app.include_router(monitoring.router, prefix="/api/monitoring", tags=["Monitoreo"])
 app.include_router(ai_matching.router, prefix="/api/ai-matching", tags=["AI Intelligence"])
 app.include_router(bots.router, prefix="/api/bots", tags=["Bot Mastery"])
+app.include_router(opportunities.router, prefix="/api/opportunities", tags=["Oportunidades"])
 
 @app.get("/")
 async def root():

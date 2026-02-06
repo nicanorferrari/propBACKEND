@@ -38,7 +38,7 @@ def generate_development_context_string(dev) -> str:
     
     return f"Emprendimiento {dev.name} en {dev.address}. Estado: {status}. Tipologías disponibles: {typologies}. Amenities: {amenities}. Descripción: {dev.description or ''}."
 
-def get_embedding(text: str) -> List[float]:
+def get_embedding(text: str, task_type: str = "retrieval_query") -> List[float]:
     """
     Llama a Gemini API para obtener el vector de embedding 004.
     """
@@ -47,9 +47,10 @@ def get_embedding(text: str) -> List[float]:
     
     try:
         result = genai.embed_content(
-            model="models/text-embedding-004",
+            model="models/gemini-embedding-001",
             content=text,
-            task_type="retrieval_document"
+            task_type=task_type,
+            output_dimensionality=768
         )
         return result['embedding']
     except Exception as e:
