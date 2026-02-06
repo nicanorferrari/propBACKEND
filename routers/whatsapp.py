@@ -41,9 +41,14 @@ def call_evo(method: str, endpoint: str, data: dict = None):
     logger.info(f"Evolution API Request: {method} {url}")
     try:
         response = requests.request(method, url, headers=headers, json=data, timeout=15)
+        logger.info(f"Evolution API Response Status: {response.status_code}")
+        # Retornamos la respuesta independientemente del status code para que el llamador lo maneje
         return response
-    except Exception as e:
+    except requests.exceptions.RequestException as e:
         logger.error(f"Evolution API Connection error calling {url}: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error calling Evolution API: {e}")
         return None
 
 def setup_webhook(instance: str):
