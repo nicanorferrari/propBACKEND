@@ -13,9 +13,9 @@ import models
 router = APIRouter()
 logger = logging.getLogger("urbanocrm.whatsapp")
 
-EVO_URL = os.getenv("EVO_URL", "").rstrip("/")
-EVO_KEY = os.getenv("EVO_KEY", "")
-INSTANCE_PREFIX = os.getenv("WHATSAPP_INSTANCE_PREFIX", "user_")
+EVO_URL = os.getenv("EVO_URL", "").strip().rstrip("/")
+EVO_KEY = os.getenv("EVO_KEY", "").strip()
+INSTANCE_PREFIX = os.getenv("WHATSAPP_INSTANCE_PREFIX", "user_").strip()
 
 # Se toma la URL del webhook desde variables de entorno para mayor flexibilidad
 WEBHOOK_URL = os.getenv(
@@ -28,14 +28,22 @@ def get_evo_instance(user_id: int):
     return f"{prefix}{user_id}_crm"
 
 def call_evo(method: str, endpoint: str, data: dict = None):
-    if not EVO_URL or not EVO_KEY: return None
+    if not EVO_URL:
+        logger.error("Evolution API Error: EVO_URL is not set")
+        return None
+    if not EVO_KEY:
+        logger.error("Evolution API Error: EVO_KEY is not set")
+        return None
+        
     headers = {"apikey": EVO_KEY, "Content-Type": "application/json"}
     url = f"{EVO_URL}{endpoint}"
+    
+    logger.info(f"Evolution API Request: {method} {url}")
     try:
         response = requests.request(method, url, headers=headers, json=data, timeout=15)
         return response
     except Exception as e:
-        logger.error(f"Evolution API Error: {e}")
+        logger.error(f"Evolution API Connection error calling {url}: {e}")
         return None
 
 def setup_webhook(instance: str):
