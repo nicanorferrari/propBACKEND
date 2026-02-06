@@ -391,7 +391,13 @@ def send_whatsapp_message(
         db.commit()
         return {"status": "ok"}
     
-    error_msg = resp.text if resp else "No response from Evolution API"
+    error_msg = "Unknown Error"
+    if resp is not None:
+        try:
+            error_msg = resp.json()
+        except:
+            error_msg = resp.text or f"Status {resp.status_code}"
+            
     logger.error(f"Evolution API send failed ({endpoint}): {error_msg}")
     raise HTTPException(500, f"Error enviando mensaje: {error_msg}")
 
