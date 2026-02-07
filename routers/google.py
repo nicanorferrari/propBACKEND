@@ -98,6 +98,50 @@ def get_google_calendar_events(current_email: str = Depends(get_current_user_ema
         return {"items": []}
     return res.json()
 
+@router.get("/agency/calendar/events")
+def get_agency_calendar_events(current_email: str = Depends(get_current_user_email), db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.email == current_email).first()
+    if not user: raise HTTPException(401)
+    
+    agency = db.query(models.AgencyConfig).first()
+    if not agency or not agency.google_refresh_token:
+         return {"items": []}
+
+    # Refresh Logic
+    token = agency.google_access_token
+    now = datetime.now()
+    expiry = datetime.fromisoformat(agency.google_token_expiry) if agency.google_token_expiry else now
+    
+    if now >= (expiry - timedelta(minutes=1)):
+        # Refresh
+        res = requests.post("https://oauth2.googleapis.com/token", data={
+            "client_id": GOOGLE_CLIENT_ID, "client_secret": GOOGLE_CLIENT_SECRET, 
+            "refresh_token": agency.google_refresh_token, "grant_type": "refresh_token"
+        })
+        if res.ok:
+            tokens = res.json()
+            agency.google_access_token = tokens["access_token"]
+            agency.google_token_expiry = str(datetime.now() + timedelta(seconds=tokens.get("expires_in", 3600)))
+            db.commit()
+            token = agency.google_access_token
+        else:
+            print(f"Agency Token Refresh Failed: {res.text}")
+            return {"items": []}
+            
+    # Fetch Events
+    try:
+        res = requests.get(
+            "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+            headers={"Authorization": f"Bearer {token}"},
+            params={"timeMin": datetime.utcnow().isoformat() + "Z", "maxResults": 50, "singleEvents": True, "orderBy": "startTime"}
+        )
+        if not res.ok:
+            return {"items": []}
+        return res.json()
+    except Exception as e:
+        print(f"Error fetching agency events: {e}")
+        return {"items": []}
+
 @router.post("/disconnect/{provider}")
 def disconnect_provider(provider: str, current_email: str = Depends(get_current_user_email), db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == current_email).first()
