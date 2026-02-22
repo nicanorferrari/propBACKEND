@@ -21,9 +21,19 @@ def sync_development_ai(db: Session, dev: models.Development):
         db.commit()
 
 @router.get("", response_model=List[schemas.DevelopmentResponse])
-def list_developments(db: Session = Depends(get_db), email: str = Depends(get_current_user_email)):
+def list_developments(search: str = None, limit: int = 1000, db: Session = Depends(get_db), email: str = Depends(get_current_user_email)):
     user = db.query(models.User).filter(models.User.email == email).first()
-    return db.query(models.Development).filter(models.Development.tenant_id == user.tenant_id).order_by(models.Development.id.desc()).all()
+    query = db.query(models.Development).filter(models.Development.tenant_id == user.tenant_id)
+    
+    if search:
+        search_term = f"%{search}%"
+        query = query.filter(
+            (models.Development.name.ilike(search_term)) | 
+            (models.Development.address.ilike(search_term)) |
+            (models.Development.code.ilike(search_term))
+        )
+        
+    return query.order_by(models.Development.id.desc()).limit(limit).all()
 
 @router.get("/{dev_id}", response_model=schemas.DevelopmentResponse)
 def get_development(dev_id: int, db: Session = Depends(get_db), email: str = Depends(get_current_user_email)):

@@ -18,3 +18,5 @@ email-validator
 google-generativeai
 pgvector
 python-dotenv
+pydantic-settings
+python-socketio

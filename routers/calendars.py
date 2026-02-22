@@ -95,3 +95,18 @@ def delete_event(id: int, db: Session = Depends(get_db), current_email: str = De
     db.delete(event)
     db.commit()
     return {"status": "ok"}
+
+@router.put("/events/{id}", response_model=schemas.EventResponse)
+def update_event(id: int, data: schemas.EventCreate, db: Session = Depends(get_db), current_email: str = Depends(get_current_user_email)):
+    user = db.query(models.User).filter(models.User.email == current_email).first()
+    event = db.query(models.CalendarEvent).filter(models.CalendarEvent.id == id).first()
+    
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+        
+    for key, value in data.dict().items():
+        setattr(event, key, value)
+        
+    db.commit()
+    db.refresh(event)
+    return event

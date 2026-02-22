@@ -4,7 +4,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 import models, schemas
 from database import get_db
-from auth import create_access_token
+from auth import create_access_token, verify_password, get_password_hash
 
 router = APIRouter()
 
@@ -12,7 +12,10 @@ router = APIRouter()
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == form_data.username).first()
     if not user: raise HTTPException(401, "Usuario no encontrado")
-    # Nota: Aquí deberías verificar el hash de la contraseña en producción
+    
+    if not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(401, "Contraseña incorrecta")
+        
     token = create_access_token(data={"sub": user.email})
     return {
         "access_token": token, 
@@ -53,7 +56,7 @@ def register(user_data: schemas.UserCreate, db: Session = Depends(get_db)):
     # Create User
     new_user = models.User(
         email=user_data.email,
-        hashed_password=user_data.password, # Hash this in production!
+        hashed_password=get_password_hash(user_data.password),
         first_name=user_data.first_name,
         last_name=user_data.last_name,
         phone_mobile=user_data.phone_mobile,

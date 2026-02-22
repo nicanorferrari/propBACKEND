@@ -8,7 +8,12 @@ from sqlalchemy.orm import Session
 from database import get_db
 from auth import get_current_user_email
 from datetime import datetime, timedelta
+import time
 import models
+import json
+
+def json_dumps(obj):
+    return json.dumps(obj, ensure_ascii=True)
 
 router = APIRouter()
 logger = logging.getLogger("urbanocrm.whatsapp")
@@ -40,9 +45,11 @@ def call_evo(method: str, endpoint: str, data: dict = None):
     
     logger.info(f"Evolution API Request: {method} {url}")
     try:
-        response = requests.request(method, url, headers=headers, json=data, timeout=15)
+        response = requests.request(method, url, headers=headers, json=data, timeout=30)
         logger.info(f"Evolution API Response Status: {response.status_code}")
         # Retornamos la respuesta independientemente del status code para que el llamador lo maneje
+        if response.status_code >= 400:
+            logger.error(f"Evolution API Error Body: {response.text}")
         return response
     except requests.exceptions.RequestException as e:
         logger.error(f"Evolution API Connection error calling {url}: {e}")
@@ -130,9 +137,12 @@ async def evolution_webhook(request: Request, background_tasks: BackgroundTasks,
         event_type = payload.get("event")
         instance_name = payload.get("instance")
         
-        logger.info(f"--- WEBHOOK RECEIVED: {event_type} from {instance_name} ---")
-
-        if event_type == "contacts.upsert" or event_type == "contacts.update":
+        if event_type == "connection.update":
+            logger.debug(f"--- WEBHOOK RECEIVED: {event_type} from {instance_name} ---")
+            return {"status": "ignored_connection_update"}
+            
+        if event_type in ["contacts.upsert", "contacts.update"]:
+             logger.info(f"--- WEBHOOK RECEIVED: {event_type} from {instance_name} ---")
              # Handle Contact Updates (e.g. name sync)
              contacts_data = payload.get("data", [])
              if not isinstance(contacts_data, list): 
@@ -164,12 +174,14 @@ async def evolution_webhook(request: Request, background_tasks: BackgroundTasks,
              
              if updated_count > 0:
                  db.commit()
-                 
+                  
              return {"status": "contacts_processed", "count": updated_count}
 
         if event_type != "messages.upsert":
+            logger.debug(f"Webhook event ignored: {event_type}")
             return {"status": "ignored_event"}
 
+        logger.info(f"--- WEBHOOK RECEIVED: {event_type} from {instance_name} ---")
         data = payload.get("data", {})
         message = data.get("message", {})
         key = data.get("key", {})
@@ -272,6 +284,10 @@ async def handle_bot_response(instance_name: str, remote_jid: str, text: str):
         engine = BotEngine(instance_name)
         phone = remote_jid.split("@")[0]
         
+        # 0. Set 'Typing...' presence
+        presence_payload = { "number": phone, "presence": "composing", "delay": 15000 }
+        call_evo("POST", f"/chat/sendPresence/{instance_name}", presence_payload)
+        
         # 1. Obtener respuesta de Gemini
         bot_response = engine.process_message(phone, text)
         
@@ -280,12 +296,51 @@ async def handle_bot_response(instance_name: str, remote_jid: str, text: str):
             # Se usa el delay para simular escritura humana
             payload = { 
                 "number": phone, 
-                "text": bot_response, 
-                "delay": 3000,
-                "linkPreview": True 
+                "text": bot_response
+                # "delay": 3000, # Comentado para evitar errores 400
+                # "linkPreview": True 
             }
-            logger.info(f"Bot Engine: Sending response to {phone}")
-            call_evo("POST", f"/message/sendText/{instance_name}", payload)
+            # Use json.dumps with ensure_ascii=True to avoid UnicodeEncodeError in Windows Console
+            logger.info(f"Bot Engine: Sending payload to {phone}: {json_dumps(payload)}")
+            msg_resp = call_evo("POST", f"/message/sendText/{instance_name}", payload)
+            
+            # Retry logic for flaky connections
+            if msg_resp is not None and msg_resp.status_code >= 400:
+                error_body = msg_resp.text
+                logger.warning(f"Evolution API Error ({msg_resp.status_code}) for {instance_name}: {error_body}")
+                
+                if "Connection Closed" in error_body or "Bad Request" in error_body:
+                    logger.info(f"Attempting to refresh connection for {instance_name}...")
+                    conn_resp = call_evo("GET", f"/instance/connect/{instance_name}")
+                    
+                    # Check if we got a QR code back (means fully disconnected)
+                    is_disconnected = False
+                    if conn_resp and conn_resp.status_code == 200:
+                        data = conn_resp.json()
+                        if "base64" in data or "qrcode" in data:
+                            is_disconnected = True
+                    
+                    if is_disconnected:
+                        logger.error(f"Instance {instance_name} is DISCONNECTED (QR required). Updating DB status.")
+                        from database import SessionLocal
+                        db = SessionLocal()
+                        try:
+                            bot = db.query(models.Bot).filter(models.Bot.instance_name == instance_name).first()
+                            if bot:
+                                bot.status = "disconnected"
+                                db.commit()
+                        finally:
+                            db.close()
+                        # Do not retry send, it will fail
+                    else:
+                        logger.info("Waiting 3s for reconnection...")
+                        time.sleep(3)
+                        
+                        logger.info(f"Retrying send to {phone}...")
+                        msg_resp = call_evo("POST", f"/message/sendText/{instance_name}", payload)
+
+            if msg_resp is not None and msg_resp.status_code >= 400:
+                logger.error(f"Failed to send bot response to {phone} after retry: {msg_resp.text}")
             
     except Exception as e:
         logger.error(f"BOT ENGINE ERROR: {e}")

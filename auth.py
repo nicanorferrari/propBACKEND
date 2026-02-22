@@ -4,9 +4,7 @@ from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
-from dotenv import load_dotenv
-
-load_dotenv()
+from settings import settings
 from fastapi.security import OAuth2PasswordBearer
 import bcrypt
 
@@ -28,18 +26,9 @@ if not hasattr(bcrypt, '__about__'):
 # ----------------------------------------------
 
 # Configuración JWT
-SECRET_KEY = os.getenv("SECRET_KEY")
-if not SECRET_KEY or SECRET_KEY == "super_secret_key_change_me_in_production":
-    if os.getenv("ENV") == "production":
-        raise ValueError("FATAL: SECRET_KEY env variable not set in production!")
-    else:
-        # Fallback for dev only with warning
-        import logging
-        logger = logging.getLogger("urbanocrm.auth")
-        logger.warning("SECURITY WARNING: Using insecure/default SECRET_KEY. Please set SECRET_KEY in .env")
-        SECRET_KEY = SECRET_KEY or "super_secret_key_change_me_in_production"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 horas
+SECRET_KEY = settings.secret_key
+ALGORITHM = settings.algorithm
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.access_token_expire_minutes
 
 # Configuración de Hashing de contraseñas
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

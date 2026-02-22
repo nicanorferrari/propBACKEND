@@ -9,9 +9,19 @@ from auth import get_current_user_email
 router = APIRouter()
 
 @router.get("", response_model=List[schemas.ContactResponse])
-def list_contacts(limit: int = 1000, offset: int = 0, db: Session = Depends(get_db), email: str = Depends(get_current_user_email)):
+def list_contacts(search: str = None, limit: int = 1000, offset: int = 0, db: Session = Depends(get_db), email: str = Depends(get_current_user_email)):
     user = db.query(models.User).filter(models.User.email == email).first()
-    return db.query(models.Contact).filter(models.Contact.tenant_id == user.tenant_id).order_by(models.Contact.id.desc()).limit(limit).offset(offset).all()
+    query = db.query(models.Contact).filter(models.Contact.tenant_id == user.tenant_id)
+    
+    if search:
+        search_term = f"%{search}%"
+        query = query.filter(
+            (models.Contact.name.ilike(search_term)) | 
+            (models.Contact.email.ilike(search_term)) |
+            (models.Contact.phone.ilike(search_term))
+        )
+        
+    return query.order_by(models.Contact.id.desc()).limit(limit).offset(offset).all()
 
 @router.post("", response_model=schemas.ContactResponse)
 def create_contact(contact: schemas.ContactCreate, db: Session = Depends(get_db), email: str = Depends(get_current_user_email)):

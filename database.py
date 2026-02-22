@@ -1,14 +1,13 @@
 import os
+print("DEBUG: database.py - starting imports")
 import re
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
-from dotenv import load_dotenv
-
-load_dotenv()
+from settings import settings
 
 # 1. Obtener la URL base
-raw_url = os.getenv("DATABASE_URL", "sqlite:///./test.db")
+raw_url = settings.database_url
 
 # 2. Limpieza robusta de la URL para forzar driver síncrono (psycopg2)
 if raw_url.startswith("postgres"):

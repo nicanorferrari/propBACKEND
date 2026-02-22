@@ -331,7 +331,7 @@ def check_bot_availability(instance_name: str, date: str = None, days: int = 3, 
     prop_config = None
     if property_id:
         prop = db.query(models.Property).get(property_id)
-        if not prop: raise HTTPException(404, "Property not found")
+        if not prop or prop.status == "Deleted": raise HTTPException(404, "Property not found of not enabled.")
         prop_config = prop
     
     # Fecha base (hoy o la solicitada)
@@ -463,7 +463,30 @@ def get_bot_conversations(skip: int = 0, limit: int = 20, db: Session = Depends(
     Lista las conversaciones activas del bot.
     """
     convs = db.query(models.BotConversation).order_by(models.BotConversation.last_message_at.desc()).offset(skip).limit(limit).all()
-    return convs
+    
+    result = []
+    from sqlalchemy import func
+    for c in convs:
+        c_dict = {
+            "phone": c.phone,
+            "last_message_at": c.last_message_at,
+            "last_sender": c.last_sender,
+            "followup_sent": c.followup_sent,
+            "contact_name": None
+        }
+        
+        raw_phone = c.phone.replace('@s.whatsapp.net', '')
+        if raw_phone:
+            search_suffix = raw_phone[-8:] if len(raw_phone) >= 8 else raw_phone
+            contact = db.query(models.Contact).filter(
+                func.regexp_replace(models.Contact.phone, '[^0-9]', '', 'g').ilike(f"%{search_suffix}")
+            ).first()
+            if contact:
+                c_dict["contact_name"] = contact.name
+        
+        result.append(c_dict)
+        
+    return result
 
 @router.get("/conversations/{phone}/messages")
 def get_conversation_messages(phone: str, limit: int = 50, db: Session = Depends(get_db)):

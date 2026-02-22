@@ -31,6 +31,7 @@ class User(Base):
     email_alt = Column(String, nullable=True)
     
     role = Column(String, default="AGENT")
+    is_active = Column(Boolean, default=True)
     avatar_url = Column(Text, nullable=True)
     language = Column(String, default="es")
     timezone = Column(String, default="America/Argentina/Buenos_Aires")
@@ -103,10 +104,13 @@ class CalendarEvent(Base):
     contact_name = Column(String, nullable=True)
     property_id = Column(Integer, ForeignKey("properties.id", ondelete="CASCADE"), nullable=True)
     property_address = Column(String, nullable=True)
+    development_id = Column(Integer, ForeignKey("developments.id"), nullable=True)
+    development_name = Column(String, nullable=True)
     status = Column(String, default="PENDING")
     description = Column(Text, nullable=True)
     google_event_id = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc))
+    notification_options = Column(JSON, default={})
     
     # Reminder fields
     is_reminder = Column(Boolean, default=False)
@@ -135,6 +139,9 @@ class Contact(Base):
     status = Column(String, default="WARM") # COLD, WARM, HOT
     type = Column(String, default="CLIENT") # CLIENT, OWNER, BROKER
     source = Column(String, nullable=True)
+    lead_score = Column(Integer, default=50) # 0-100 score AI
+    lead_sentiment = Column(String, default="NEUTRAL")
+    drip_campaign_active = Column(Boolean, default=False)
     notes = Column(Text, nullable=True)
     last_contact_date = Column(DateTime(timezone=True), nullable=True)
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
@@ -197,6 +204,7 @@ class Property(Base):
     description = Column(Text, nullable=True)
     virtual_tour_url = Column(String, nullable=True)
     video_url = Column(String, nullable=True)
+    published_on_portals = Column(JSON, default=[])
     
     # IA Columns (768 dimensions for Gemini Text Embedding 004)
     embedding_descripcion = Column(Vector(768), nullable=True)

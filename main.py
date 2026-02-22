@@ -1,21 +1,31 @@
 import os
+print("DEBUG: main.py - imports 1")
 from fastapi import FastAPI, BackgroundTasks
+print("DEBUG: main.py - imports 2")
 from fastapi.middleware.cors import CORSMiddleware
+print("DEBUG: main.py - imports 3")
 from contextlib import asynccontextmanager
+print("DEBUG: main.py - imports 4")
 import logging
+print("DEBUG: main.py - imports 5")
 import asyncio
+print("DEBUG: main.py - imports 6")
 from dotenv import load_dotenv
-
+print("DEBUG: main.py - imports 7")
 load_dotenv()
+print("DEBUG: main.py - imports 8")
 from sqlalchemy import text
+print("DEBUG: main.py - imports 9")
 import uuid
-
-# Importaciones de configuración y DB
+print("DEBUG: main.py - imports 10")
 from database import engine, Base, SessionLocal
 import models
 
+from socket_manager import sio, send_notification
+import socketio
+
 # Importación de Routers
-from routers import auth, users, properties, developments, contacts, branches, config, media, google, calendars, team, import_data, whatsapp, monitoring, ai_matching, ai_service, bots, opportunities
+from routers import auth, users, properties, developments, contacts, branches, config, media, google, calendars, team, import_data, whatsapp, monitoring, ai_matching, ai_service, bots, opportunities, feed
 
 import logging
 from logging.handlers import RotatingFileHandler
@@ -79,14 +89,22 @@ async def lifespan(app: FastAPI):
     def db_setup():
         with SessionLocal() as db:
             try:
+                # 1. Extensiones (solo si no están)
                 db.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
                 db.commit()
             except Exception as e:
                 logger.warning(f"Could not enable pgvector: {e}")
                 db.rollback()
 
-            Base.metadata.create_all(bind=engine)
+            # 2. Verificar si necesitamos correr migraciones pesadas
+            # Si ya tenemos la tabla system_configs, asumimos que la estructura base está ok
+            check_table = db.execute(text("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'system_configs');")).scalar()
             
+            if not check_table:
+                logger.info("Database: Running base model creation...")
+                Base.metadata.create_all(bind=engine)
+            
+            # 3. Migraciones incrementales rápidas (con IF NOT EXISTS)
             migration_commands = [
                 "ALTER TABLE properties ADD COLUMN IF NOT EXISTS embedding_descripcion vector(768);",
                 "ALTER TABLE developments ADD COLUMN IF NOT EXISTS embedding_proyecto vector(768);",
@@ -102,42 +120,40 @@ async def lifespan(app: FastAPI):
                 "ALTER TABLE properties ADD COLUMN IF NOT EXISTS video_url VARCHAR;",
                 "ALTER TABLE developments ADD COLUMN IF NOT EXISTS virtual_tour_url VARCHAR;",
                 "ALTER TABLE developments ADD COLUMN IF NOT EXISTS video_url VARCHAR;",
+                "ALTER TABLE properties ADD COLUMN IF NOT EXISTS published_on_portals JSONB DEFAULT '[]'::jsonb;",
+                "ALTER TABLE contacts ADD COLUMN IF NOT EXISTS lead_score INTEGER DEFAULT 50;",
+                "ALTER TABLE contacts ADD COLUMN IF NOT EXISTS lead_sentiment VARCHAR DEFAULT 'NEUTRAL';",
+                "ALTER TABLE contacts ADD COLUMN IF NOT EXISTS drip_campaign_active BOOLEAN DEFAULT FALSE;",
                 "CREATE TABLE IF NOT EXISTS bots (id SERIAL PRIMARY KEY, user_id INTEGER, platform VARCHAR, instance_name VARCHAR, system_prompt TEXT, business_hours JSONB, tags JSONB, config JSONB, status VARCHAR, is_active BOOLEAN, created_at TIMESTAMP, updated_at TIMESTAMP);",
-                "ALTER TABLE bots ADD COLUMN IF NOT EXISTS config JSONB DEFAULT '{}'::jsonb;",
-                "ALTER TABLE bots ADD COLUMN IF NOT EXISTS business_hours JSONB DEFAULT '{}'::jsonb;",
-                "ALTER TABLE bots ADD COLUMN IF NOT EXISTS tags JSONB DEFAULT '[]'::jsonb;",
-                "ALTER TABLE bots ADD COLUMN IF NOT EXISTS system_prompt TEXT;",
-                "ALTER TABLE bots ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'disconnected';",
-                "ALTER TABLE bots ADD COLUMN IF NOT EXISTS instance_name VARCHAR;",
             ]
             
             for cmd in migration_commands:
                 try:
+                    # Solo ejecutamos si el comando contiene ADD COLUMN y la columna no existe (opcional, IF NOT EXISTS ya lo hace)
                     db.execute(text(cmd))
                     db.commit()
                 except Exception as e:
-                    logger.warning(f"Migration failed: {cmd} - {e}")
                     db.rollback()
 
-            # Generar datos faltantes
+            # 4. Generar datos faltantes (Solo si es necesario)
             try:
                 # User Tokens
-                users_without_token = db.execute(text("SELECT id FROM users WHERE monitoring_token IS NULL")).fetchall()
-                for u in users_without_token:
-                    new_token = f"URB-MON-{uuid.uuid4().hex[:12].upper()}"
-                    db.execute(text("UPDATE users SET monitoring_token = :token WHERE id = :id"), {"token": new_token, "id": u[0]})
+                db.execute(text("""
+                    UPDATE users SET monitoring_token = 'URB-MON-' || substring(md5(random()::text) from 1 for 12)
+                    WHERE monitoring_token IS NULL;
+                """))
                 
                 # Property codes
-                props_without_code = db.execute(text("SELECT id FROM properties WHERE code IS NULL")).fetchall()
-                for p in props_without_code:
-                    new_code = f"URB-P{uuid.uuid4().hex[:5].upper()}"
-                    db.execute(text("UPDATE properties SET code = :code WHERE id = :id"), {"code": new_code, "id": p[0]})
+                db.execute(text("""
+                    UPDATE properties SET code = 'URB-P' || upper(substring(md5(random()::text) from 1 for 5))
+                    WHERE code IS NULL;
+                """))
 
                 # Dev codes
-                devs_without_code = db.execute(text("SELECT id FROM developments WHERE code IS NULL")).fetchall()
-                for d in devs_without_code:
-                    new_code = f"URB-D{uuid.uuid4().hex[:5].upper()}"
-                    db.execute(text("UPDATE developments SET code = :code WHERE id = :id"), {"code": new_code, "id": d[0]})
+                db.execute(text("""
+                    UPDATE developments SET code = 'URB-D' || upper(substring(md5(random()::text) from 1 for 5))
+                    WHERE code IS NULL;
+                """))
 
                 db.commit()
             except Exception as e:
@@ -145,11 +161,10 @@ async def lifespan(app: FastAPI):
                 db.rollback()
                     
     await asyncio.to_thread(db_setup)
-    # Lanzar backfill en background
-    asyncio.create_task(backfill_embeddings())
     yield
 
 app = FastAPI(title="UrbanoCRM AI-SaaS", lifespan=lifespan)
+socket_app = socketio.ASGIApp(sio, other_asgi_app=app)
 
 app.add_middleware(
     CORSMiddleware,
@@ -182,7 +197,28 @@ app.include_router(monitoring.router, prefix="/api/monitoring", tags=["Monitoreo
 app.include_router(ai_matching.router, prefix="/api/ai-matching", tags=["AI Intelligence"])
 app.include_router(bots.router, prefix="/api/bots", tags=["Bot Mastery"])
 app.include_router(opportunities.router, prefix="/api/opportunities", tags=["Oportunidades"])
+app.include_router(feed.router, prefix="/api/feed", tags=["Sindicación Portales"])
 
 @app.get("/")
 async def root():
     return {"status": "ok", "message": "UrbanoCRM SaaS AI Engine Active"}
+
+# Dev route for testing socket 
+@app.get("/test-socket/{user_id}")
+async def test_socket(user_id: str):
+    import datetime
+    import uuid
+    data = {
+        "id": "test-" + str(uuid.uuid4())[:8],
+        "type": "SYSTEM",
+        "title": "Prueba de Servidor",
+        "description": "Esto es una notificación de prueba en tiempo real.",
+        "time": datetime.datetime.now().isoformat(),
+        "read": False,
+        "link": "/"
+    }
+    await send_notification(user_id, data)
+    return {"status": "sent", "user": user_id, "data": data}
+
+def get_wsgi_app():
+    return socket_app

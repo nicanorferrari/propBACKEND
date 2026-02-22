@@ -1,2 +1,146 @@
 2026-02-06 08:27:40,465 - urbanocrm.ai_service - ERROR - AI ERROR: Failed to get embedding from Gemini: 404 models/text-embedding-004 is not found for API version v1beta, or is not supported for embedContent. Call ListModels to see the list of available models and their supported methods.
 2026-02-06 08:27:47,831 - urbanocrm.ai_service - ERROR - AI ERROR: Failed to get embedding from Gemini: 404 models/text-embedding-004 is not found for API version v1beta, or is not supported for embedContent. Call ListModels to see the list of available models and their supported methods.
+2026-02-09 06:49:06,654 - urbanocrm.whatsapp - ERROR - WEBHOOK ERROR: (psycopg2.errors.ForeignKeyViolation) insert or update on table "activity_logs" violates foreign key constraint "activity_logs_user_id_fkey"
+DETAIL:  Key (user_id)=(1) is not present in table "users".
+
+[SQL: INSERT INTO activity_logs (user_id, action, entity_type, entity_id, description, timestamp) VALUES (%(user_id)s, %(action)s, %(entity_type)s, %(entity_id)s, %(description)s, %(timestamp)s) RETURNING activity_logs.id]
+[parameters: {'user_id': 1, 'action': 'WHATSAPP_RECEIVED', 'entity_type': 'CONTACT', 'entity_id': 2064, 'description': 'Recibido: Hola, busco propiedad en Rosario', 'timestamp': datetime.datetime(2026, 2, 9, 9, 49, 6, 527349)}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)
+2026-02-09 06:49:15,043 - urbanocrm.whatsapp - ERROR - WEBHOOK ERROR: (psycopg2.errors.ForeignKeyViolation) insert or update on table "activity_logs" violates foreign key constraint "activity_logs_user_id_fkey"
+DETAIL:  Key (user_id)=(1) is not present in table "users".
+
+[SQL: INSERT INTO activity_logs (user_id, action, entity_type, entity_id, description, timestamp) VALUES (%(user_id)s, %(action)s, %(entity_type)s, %(entity_id)s, %(description)s, %(timestamp)s) RETURNING activity_logs.id]
+[parameters: {'user_id': 1, 'action': 'WHATSAPP_RECEIVED', 'entity_type': 'CONTACT', 'entity_id': 2065, 'description': 'Recibido: Me gustaría visitar la propiedad casa en funes mañana', 'timestamp': datetime.datetime(2026, 2, 9, 9, 49, 14, 961632)}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)
+2026-02-11 08:35:10,426 - urbanocrm.whatsapp - ERROR - WEBHOOK ERROR: (psycopg2.errors.ForeignKeyViolation) insert or update on table "activity_logs" violates foreign key constraint "activity_logs_user_id_fkey"
+DETAIL:  Key (user_id)=(1) is not present in table "users".
+
+[SQL: INSERT INTO activity_logs (user_id, action, entity_type, entity_id, description, timestamp) VALUES (%(user_id)s, %(action)s, %(entity_type)s, %(entity_id)s, %(description)s, %(timestamp)s) RETURNING activity_logs.id]
+[parameters: {'user_id': 1, 'action': 'WHATSAPP_RECEIVED', 'entity_type': 'CONTACT', 'entity_id': 2067, 'description': 'Recibido: Hola, busco departamento de 2 dormitorios en el centro de Rosario', 'timestamp': datetime.datetime(2026, 2, 11, 11, 35, 10, 417332)}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)
+2026-02-11 08:35:22,504 - urbanocrm.whatsapp - ERROR - WEBHOOK ERROR: (psycopg2.errors.ForeignKeyViolation) insert or update on table "activity_logs" violates foreign key constraint "activity_logs_user_id_fkey"
+DETAIL:  Key (user_id)=(1) is not present in table "users".
+
+[SQL: INSERT INTO activity_logs (user_id, action, entity_type, entity_id, description, timestamp) VALUES (%(user_id)s, %(action)s, %(entity_type)s, %(entity_id)s, %(description)s, %(timestamp)s) RETURNING activity_logs.id]
+[parameters: {'user_id': 1, 'action': 'WHATSAPP_RECEIVED', 'entity_type': 'CONTACT', 'entity_id': 2068, 'description': 'Recibido: Me interesa el de San Lorenzo al 1000', 'timestamp': datetime.datetime(2026, 2, 11, 11, 35, 22, 496075)}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)
+2026-02-11 08:35:34,564 - urbanocrm.whatsapp - ERROR - WEBHOOK ERROR: (psycopg2.errors.ForeignKeyViolation) insert or update on table "activity_logs" violates foreign key constraint "activity_logs_user_id_fkey"
+DETAIL:  Key (user_id)=(1) is not present in table "users".
+
+[SQL: INSERT INTO activity_logs (user_id, action, entity_type, entity_id, description, timestamp) VALUES (%(user_id)s, %(action)s, %(entity_type)s, %(entity_id)s, %(description)s, %(timestamp)s) RETURNING activity_logs.id]
+[parameters: {'user_id': 1, 'action': 'WHATSAPP_RECEIVED', 'entity_type': 'CONTACT', 'entity_id': 2069, 'description': 'Recibido: Genial, quiero coordinar una visita para verlo.', 'timestamp': datetime.datetime(2026, 2, 11, 11, 35, 34, 556496)}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)
+2026-02-12 16:38:52,237 - urbanocrm.whatsapp - ERROR - Evolution API Connection error calling https://propcrm-evolution-api.rjcuax.easypanel.host/message/sendText/urbano_crm_user_11: HTTPSConnectionPool(host='propcrm-evolution-api.rjcuax.easypanel.host', port=443): Read timed out. (read timeout=15)
+2026-02-12 16:40:10,659 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":["Error: Connection Closed"]}}
+2026-02-12 16:41:08,368 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":["Error: Connection Closed"]}}
+2026-02-12 16:42:36,817 - urbanocrm.whatsapp - ERROR - Evolution API Connection error calling https://propcrm-evolution-api.rjcuax.easypanel.host/message/sendText/urbano_crm_user_11: HTTPSConnectionPool(host='propcrm-evolution-api.rjcuax.easypanel.host', port=443): Read timed out. (read timeout=15)
+2026-02-12 16:44:43,728 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":["Error: Connection Closed"]}}
+2026-02-12 16:46:09,018 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":["Error: Connection Closed"]}}
+2026-02-12 16:47:23,374 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":["Error: Connection Closed"]}}
+2026-02-12 16:54:54,781 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":["Error: Connection Closed"]}}
+2026-02-12 16:54:58,964 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":["1006"]}}
+2026-02-12 16:54:58,966 - urbanocrm.whatsapp - ERROR - Failed to send bot response to 5493412281103 after retry: {"status":400,"error":"Bad Request","response":{"message":["1006"]}}
+2026-02-12 16:56:44,032 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":["Error: Connection Closed"]}}
+2026-02-12 16:56:49,790 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":["1006"]}}
+2026-02-12 16:56:49,791 - urbanocrm.whatsapp - ERROR - Failed to send bot response to 5493412281103 after retry: {"status":400,"error":"Bad Request","response":{"message":["1006"]}}
+2026-02-12 16:59:14,469 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":["Error: Connection Closed"]}}
+2026-02-12 16:59:18,516 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":["Error: Connection Closed"]}}
+2026-02-12 16:59:18,519 - urbanocrm.whatsapp - ERROR - Failed to send bot response to 5493412281103 after retry: {"status":400,"error":"Bad Request","response":{"message":["Error: Connection Closed"]}}
+2026-02-12 17:03:33,449 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":["Error: Connection Closed"]}}
+2026-02-12 17:03:33,944 - urbanocrm.whatsapp - ERROR - Instance urbano_crm_user_11 is DISCONNECTED (QR required). Updating DB status.
+2026-02-12 17:03:34,273 - urbanocrm.whatsapp - ERROR - Failed to send bot response to 5493412281103 after retry: {"status":400,"error":"Bad Request","response":{"message":["Error: Connection Closed"]}}
+2026-02-12 17:11:53,385 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":["Error: Connection Closed"]}}
+2026-02-12 17:11:56,420 - urbanocrm.whatsapp - ERROR - Instance urbano_crm_user_11 is DISCONNECTED (QR required). Updating DB status.
+2026-02-12 17:11:57,372 - urbanocrm.whatsapp - ERROR - Failed to send bot response to 5493412281103 after retry: {"status":400,"error":"Bad Request","response":{"message":["Error: Connection Closed"]}}
+2026-02-12 17:23:15,098 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":["1006"]}}
+2026-02-12 17:23:17,873 - urbanocrm.whatsapp - ERROR - Instance urbano_crm_user_11 is DISCONNECTED (QR required). Updating DB status.
+2026-02-12 17:23:18,235 - urbanocrm.whatsapp - ERROR - Failed to send bot response to 5493412281103 after retry: {"status":400,"error":"Bad Request","response":{"message":["1006"]}}
+2026-02-12 17:30:41,201 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":["Error: Connection Closed"]}}
+2026-02-12 17:30:41,734 - urbanocrm.whatsapp - ERROR - Instance urbano_crm_user_11 is DISCONNECTED (QR required). Updating DB status.
+2026-02-12 17:30:41,983 - urbanocrm.whatsapp - ERROR - Failed to send bot response to 5493412281103 after retry: {"status":400,"error":"Bad Request","response":{"message":["Error: Connection Closed"]}}
+2026-02-12 17:49:32,260 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:49:33,442 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:49:34,965 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:49:49,976 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:50:04,706 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:50:19,179 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:50:33,906 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:50:55,795 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:51:03,725 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:51:19,601 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:51:34,732 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:51:48,786 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:52:05,195 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:52:18,896 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:52:34,472 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:52:49,391 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:53:04,314 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:53:19,042 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:53:35,194 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:53:49,184 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:54:04,547 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:54:19,374 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:54:34,347 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:54:49,198 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:55:07,669 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:55:18,894 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:55:35,271 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:55:49,920 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:56:04,326 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:56:19,224 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:56:35,987 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:56:48,821 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:57:04,698 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:57:18,765 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:57:34,077 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:57:48,908 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:58:05,250 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:58:19,306 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:58:35,343 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:58:50,801 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:59:04,626 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:59:18,806 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:59:34,323 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 17:59:49,292 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 18:00:04,711 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 18:00:36,771 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 18:00:38,360 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 18:00:54,690 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 18:01:10,627 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 18:01:24,306 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 18:01:38,611 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 18:01:54,043 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 18:02:08,406 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 18:02:23,448 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 18:02:38,830 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 18:02:53,562 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 18:03:08,525 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 18:03:24,888 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 18:03:44,320 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 18:03:55,446 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 19:26:37,379 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 19:26:38,365 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 19:26:39,272 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 19:26:40,876 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-12 19:26:42,147 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":404,"error":"Not Found","response":{"message":["The \"user_11_crm\" instance does not exist"]}}
+2026-02-12 19:26:42,599 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":404,"error":"Not Found","response":{"message":["The \"user_11_crm\" instance does not exist"]}}
+2026-02-12 19:26:49,028 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-13 16:35:25,958 - urbanocrm.ai_service - ERROR - AI ERROR: Failed to get embedding from Gemini: 403 The provided API key has an IP address restriction. The originating IP address of the call (186.182.13.124) violates this restriction. [reason: "API_KEY_IP_ADDRESS_BLOCKED"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "generativelanguage.googleapis.com"
+}
+metadata {
+  key: "consumer"
+  value: "projects/307589150506"
+}
+metadata {
+  key: "callerIp"
+  value: "186.182.13.124"
+}
+, locale: "en-US"
+message: "The provided API key has an IP address restriction. The originating IP address of the call (186.182.13.124) violates this restriction."
+]
+2026-02-14 10:37:56,331 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":404,"error":"Not Found","response":{"message":["The \"user_11_crm\" instance does not exist"]}}
+2026-02-14 10:38:02,464 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}

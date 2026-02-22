@@ -1,5 +1,5 @@
 
-from pydantic import BaseModel, Field, EmailStr, field_validator
+from pydantic import BaseModel, Field, EmailStr, field_validator, ConfigDict
 from typing import Optional, List, Any, Dict, Union
 from datetime import datetime, timezone
 
@@ -36,8 +36,7 @@ class ActivityLogResponse(BaseModel):
             return v.replace(tzinfo=timezone.utc)
         return v
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class EventBase(BaseModel):
     title: str
@@ -50,8 +49,11 @@ class EventBase(BaseModel):
     contact_name: Optional[str] = None
     property_id: Optional[int] = None
     property_address: Optional[str] = None
+    development_id: Optional[int] = None
+    development_name: Optional[str] = None
     status: str = "PENDING"
     description: Optional[str] = None
+    notification_options: Optional[Dict[str, Any]] = {}
     is_reminder: bool = False
     email_alert: bool = False
 
@@ -63,8 +65,7 @@ class EventResponse(EventBase):
     agent_id: Optional[int] = None
     alert_sent: bool = False
     alert_24h_sent: bool = False
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class BranchBase(BaseModel):
     name: str
@@ -77,8 +78,7 @@ class BranchCreate(BranchBase):
 
 class BranchResponse(BranchBase):
     id: int
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class AgencyConfigUpdate(BaseModel):
     agency_name: Optional[str] = None
@@ -106,6 +106,9 @@ class ContactBase(BaseModel):
     status: Optional[str] = "WARM"
     type: Optional[str] = "CLIENT"
     source: Optional[str] = None
+    lead_score: Optional[int] = 50
+    lead_sentiment: Optional[str] = "NEUTRAL"
+    drip_campaign_active: Optional[bool] = False
     notes: Optional[str] = None
     last_contact_date: Optional[datetime] = None
 
@@ -133,15 +136,13 @@ class InteractionResponse(InteractionBase):
             return v.replace(tzinfo=timezone.utc)
         return v
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class ContactResponse(ContactBase):
     id: int
     created_at: datetime
     created_by_id: Optional[int] = None
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class UserProfileUpdate(BaseModel):
     first_name: Optional[str] = None
@@ -172,8 +173,7 @@ class UserResponse(UserProfileUpdate):
     role: str
     avatar_url: Optional[str] = None
     monitoring_token: Optional[str] = None
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class UserCreate(BaseModel):
     email: EmailStr
@@ -240,6 +240,7 @@ class PropertyCreate(BaseModel):
     lng: float = 0.0
     hide_exact_location: bool = False
     description: Optional[str] = None
+    published_on_portals: Optional[List[str]] = []
     
     # Management
     owner_name: Optional[str] = None
@@ -266,8 +267,7 @@ class PropertyResponse(PropertyCreate):
     assigned_agent_id: Optional[int] = None
     code: Optional[str] = "N/A"
     status: Optional[str] = "Active"
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class TypologyBase(BaseModel):
     name: str
@@ -279,8 +279,7 @@ class TypologyBase(BaseModel):
 
 class TypologyResponse(TypologyBase):
     id: int
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class UnitBase(BaseModel):
     unit_name: str
@@ -291,8 +290,7 @@ class UnitBase(BaseModel):
 
 class UnitResponse(UnitBase):
     id: int
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class DevelopmentBase(BaseModel):
     name: str
@@ -318,8 +316,7 @@ class DevelopmentResponse(DevelopmentBase):
     code: Optional[str] = "N/A"
     typologies: List[TypologyResponse] = []
     units: List[UnitResponse] = []
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # Bot Schemas
 class BotBase(BaseModel):
@@ -338,8 +335,7 @@ class BotResponse(BotBase):
     status: str
     instance_name: Optional[str] = None
     qrCode: Optional[str] = None
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class BotConnectRequest(BaseModel):
     platform: str
@@ -356,8 +352,7 @@ class PipelineStageCreate(PipelineStageBase):
 class PipelineStageResponse(PipelineStageBase):
     id: int
     pipeline_id: int
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class PipelineBase(BaseModel):
     name: str
@@ -369,8 +364,7 @@ class PipelineCreate(PipelineBase):
 class PipelineResponse(PipelineBase):
     id: int
     stages: List[PipelineStageResponse]
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class DealBase(BaseModel):
     title: str
@@ -406,16 +400,14 @@ class DealCommentResponse(BaseModel):
     content: str
     user_id: Optional[int] = None
     created_at: Optional[datetime] = None
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class DealHistoryResponse(BaseModel):
     id: int
     from_stage_id: Optional[int] = None
     to_stage_id: int
     created_at: datetime
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class DealResponse(DealBase):
     id: int
@@ -426,5 +418,4 @@ class DealResponse(DealBase):
     agent: Optional[UserResponse] = None
     comments: List[DealCommentResponse] = []
     history: List[DealHistoryResponse] = []
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

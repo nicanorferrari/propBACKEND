@@ -255,6 +255,10 @@ def delete_deal(deal_id: int, db: Session = Depends(get_db), email: str = Depend
     if not db_deal:
         raise HTTPException(status_code=404, detail="Deal not found")
     
+    # Dissociate contact interactions to avoid FK violation
+    # Interactions are valuable history, so we keep them but remove the link
+    db.query(models.ContactInteraction).filter(models.ContactInteraction.deal_id == deal_id).update({models.ContactInteraction.deal_id: None})
+    
     db.delete(db_deal)
     db.commit()
     return {"message": "Deal deleted successfully"}

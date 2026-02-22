@@ -10,10 +10,23 @@ import uuid
 router = APIRouter()
 
 @router.get("", response_model=List[schemas.UserResponse])
-def list_team(db: Session = Depends(get_db), current_email: str = Depends(get_current_user_email)): 
+def list_team(search: str = None, limit: int = 1000, db: Session = Depends(get_db), current_email: str = Depends(get_current_user_email)): 
     """Retorna todos los usuarios de la inmobiliaria."""
     user = db.query(models.User).filter(models.User.email == current_email).first()
-    return db.query(models.User).filter(models.User.tenant_id == user.tenant_id).order_by(models.User.id.asc()).all()
+    query = db.query(models.User).filter(
+        models.User.tenant_id == user.tenant_id,
+        models.User.is_active == True
+    )
+    
+    if search:
+        search_term = f"%{search}%"
+        query = query.filter(
+            (models.User.first_name.ilike(search_term)) | 
+            (models.User.last_name.ilike(search_term)) |
+            (models.User.email.ilike(search_term))
+        )
+        
+    return query.order_by(models.User.id.asc()).limit(limit).all()
 
 @router.put("/{user_id}", response_model=schemas.UserResponse)
 def update_member(user_id: int, data: schemas.UserProfileUpdate, db: Session = Depends(get_db), current_admin: str = Depends(get_current_user_email)):
@@ -22,7 +35,11 @@ def update_member(user_id: int, data: schemas.UserProfileUpdate, db: Session = D
     if not admin or admin.role not in ["SUPER_ADMIN", "BROKER_ADMIN"]:
         raise HTTPException(403, "No tienes permisos para gestionar el equipo")
         
-    user = db.query(models.User).filter(models.User.id == user_id, models.User.tenant_id == admin.tenant_id).first()
+    user = db.query(models.User).filter(
+        models.User.id == user_id, 
+        models.User.tenant_id == admin.tenant_id,
+        models.User.is_active == True
+    ).first()
     if not user:
         raise HTTPException(404, "Miembro no encontrado")
         
@@ -54,7 +71,11 @@ def admin_regenerate_token(user_id: int, db: Session = Depends(get_db), current_
     if not admin or admin.role not in ["SUPER_ADMIN", "BROKER_ADMIN"]:
         raise HTTPException(403, "No autorizado para regenerar tokens ajenos")
         
-    user = db.query(models.User).filter(models.User.id == user_id, models.User.tenant_id == admin.tenant_id).first()
+    user = db.query(models.User).filter(
+        models.User.id == user_id, 
+        models.User.tenant_id == admin.tenant_id,
+        models.User.is_active == True
+    ).first()
     if not user:
         raise HTTPException(404, "Usuario no encontrado")
     
@@ -75,8 +96,22 @@ def admin_regenerate_token(user_id: int, db: Session = Depends(get_db), current_
 @router.delete("/{user_id}")
 def delete_member(user_id: int, db: Session = Depends(get_db), current_email: str = Depends(get_current_user_email)):
     admin = db.query(models.User).filter(models.User.email == current_email).first()
-    user = db.query(models.User).filter(models.User.id == user_id, models.User.tenant_id == admin.tenant_id).first()
+    user = db.query(models.User).filter(
+        models.User.id == user_id, 
+        models.User.tenant_id == admin.tenant_id,
+        models.User.is_active == True
+    ).first()
+    
     if not user: raise HTTPException(404)
-    db.delete(user)
+    
+    user.is_active = False
+    
+    db.add(models.ActivityLog(
+        user_id=admin.id,
+        action="DELETE",
+        entity_type="USER",
+        entity_id=user_id,
+        description=f"Eliminó miembro (Soft Delete): {user.email}"
+    ))
     db.commit()
-    return {"status": "ok"}
+    return {"status": "ok", "message": "Miembro desactivado correctamente"}

@@ -124,6 +124,18 @@ ADINCO_OTHER_MAP = {
     "Jardín": "terrace" # Simplificado
 }
 
+ADINCO_TYPE_MAP = {
+    "Departamento": "Apartment",
+    "Casa": "House",
+    "Tipo Casa PH": "PH",
+    "Terreno": "Land",
+    "Local": "Commercial",
+    "Oficina": "Office",
+    "Cochera": "Garage",
+    "Galpón": "Warehouse"
+}
+
+
 async def scrape_unit_ids_from_dev(dev_url: str) -> Set[str]:
     """
     Visita la URL del emprendimiento y extrae los IDs de las unidades relacionadas
@@ -265,6 +277,8 @@ async def import_adinco_xml(agency_id: str, db: Session = Depends(get_db)):
                 db.add(new_dev); added_d += 1
             else:
                 price_node = ad.find('price')
+                p_type_val = ADINCO_TYPE_MAP.get(p_type, p_type)
+                
                 new_prop = models.Property(
                     code=f"IMP-{ext_id}",
                     title=ad.findtext('content_title') or ad.findtext('title'),
@@ -272,7 +286,7 @@ async def import_adinco_xml(agency_id: str, db: Session = Depends(get_db)):
                     city=ad.findtext('city') or "Rosario",
                     price=float(ad.findtext('price') or 0),
                     currency=price_node.get('currency') if price_node is not None else "USD",
-                    type=p_type,
+                    type=p_type_val,
                     operation="Sale" if "Sale" in ad.findtext('type') else "Rent",
                     description=ad.findtext('content'),
                     attributes=list(amenities),
@@ -298,11 +312,29 @@ async def import_adinco_xml(agency_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/clean")
-async def cleanup_imported_data(db: Session = Depends(get_db)):
-    # Borrar propiedades importadas (código empieza con IMP-)
-    props = db.query(models.Property).filter(models.Property.code.like("IMP-%")).all()
-    devs = db.query(models.Development).all()
-    for p in props: db.delete(p)
-    for d in devs: db.delete(d)
+async def cleanup_imported_data(db: Session = Depends(get_db), email: str = Depends(get_current_user_email)):
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    tenant_id = user.tenant_id
+
+    # Borrar propiedades importadas (código empieza con IMP-) limitadas al tenant
+    props = db.query(models.Property).filter(
+        models.Property.tenant_id == tenant_id,
+        models.Property.code.like("IMP-%")
+    ).all()
+    
+    devs = db.query(models.Development).filter(
+        models.Development.tenant_id == tenant_id
+    ).all()
+    
+    for p in props:
+        # Also clean related records if cascading isn't handled by DB schema
+        db.delete(p)
+    
+    for d in devs:
+        db.delete(d)
+        
     db.commit()
     return {"status": "success", "deleted_properties": len(props), "deleted_developments": len(devs)}

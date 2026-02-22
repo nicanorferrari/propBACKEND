@@ -20,7 +20,8 @@ GOOGLE_CLIENT_ID = os.getenv("VITE_GOOGLE_CLIENT_ID") or os.getenv("GOOGLE_CLIEN
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 GOOGLE_REDIRECT_URI = os.getenv("VITE_GOOGLE_REDIRECT_URI") or os.getenv("GOOGLE_REDIRECT_URI") or "https://propcrm-web.rjcuax.easypanel.host/"
 
-print(f"GOOGLE CONF: ID={GOOGLE_CLIENT_ID[:10]}... Secret={'SET' if GOOGLE_CLIENT_SECRET else 'NULL'}")
+google_id_log = GOOGLE_CLIENT_ID[:10] if GOOGLE_CLIENT_ID else "NULL"
+print(f"GOOGLE CONF: ID={google_id_log}... Secret={'SET' if GOOGLE_CLIENT_SECRET else 'NULL'}")
 
 def get_valid_google_token(user: models.User, db: Session):
     if not user.google_refresh_token: return None
@@ -126,6 +127,17 @@ def get_agency_calendar_events(current_email: str = Depends(get_current_user_ema
             token = agency.google_access_token
         else:
             print(f"Agency Token Refresh Failed: {res.text}")
+            try:
+                err_data = res.json()
+                if err_data.get("error") == "invalid_grant":
+                     print("⚠️ Invalid Agency Grant detected. Clearing tokens...")
+                     agency.google_access_token = None
+                     agency.google_refresh_token = None
+                     agency.google_token_expiry = None
+                     # No tocamos google_email para que el user sepa qué cuenta estaba vinculada
+                     db.commit()
+            except:
+                pass
             return {"items": []}
             
     # Fetch Events
@@ -275,3 +287,44 @@ async def callback(request: Request, db: Session = Depends(get_db), current_emai
             db.commit()
             
     return {"status": "success"}
+
+def get_valid_agency_token(agency: models.AgencyConfig, db: Session):
+    if not agency.google_refresh_token: return None
+    now = datetime.now()
+    expiry = datetime.fromisoformat(agency.google_token_expiry) if agency.google_token_expiry else now
+    
+    if now < (expiry - timedelta(minutes=1)): return agency.google_access_token
+    
+    # Refresh
+    res = requests.post("https://oauth2.googleapis.com/token", data={
+        "client_id": GOOGLE_CLIENT_ID, "client_secret": GOOGLE_CLIENT_SECRET, 
+        "refresh_token": agency.google_refresh_token, "grant_type": "refresh_token"
+    })
+    
+    if res.ok:
+        tokens = res.json()
+        agency.google_access_token = tokens["access_token"]
+        agency.google_token_expiry = str(datetime.now() + timedelta(seconds=tokens.get("expires_in", 3600)))
+        db.commit()
+        return agency.google_access_token
+    else:
+        print(f"Agency Refresh Failed: {res.text}")
+        try:
+            err_data = res.json()
+            if err_data.get("error") == "invalid_grant":
+                print("⚠️ Invalid Agency Grant detected. Clearing tokens...")
+                agency.google_access_token = None
+                agency.google_refresh_token = None
+                agency.google_token_expiry = None
+                db.commit()
+        except:
+            pass
+        return None
+
+def create_google_event(token: str, event_data: dict, calendar_id: str = "primary"):
+    res = requests.post(
+        f"https://www.googleapis.com/calendar/v3/calendars/{calendar_id}/events",
+        headers={"Authorization": f"Bearer {token}"},
+        json=event_data
+    )
+    return res
