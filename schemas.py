@@ -240,6 +240,8 @@ class PropertyCreate(BaseModel):
     lng: float = 0.0
     hide_exact_location: bool = False
     description: Optional[str] = None
+    virtual_tour_url: Optional[str] = None
+    video_url: Optional[str] = None
     published_on_portals: Optional[List[str]] = []
     
     # Management
@@ -306,6 +308,8 @@ class DevelopmentBase(BaseModel):
     is_shared: bool = False
     sharing_commission: float = 0.0
     sharing_notes: Optional[str] = None
+    virtual_tour_url: Optional[str] = None
+    video_url: Optional[str] = None
 
 class DevelopmentCreate(DevelopmentBase):
     typologies: List[TypologyBase] = []

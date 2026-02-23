@@ -61,6 +61,7 @@ def search_properties(semantic_query: str = None, operation: str = None, propert
                 "code": p.code,
                 "agent": f"{p.assigned_agent.first_name} {p.assigned_agent.last_name}" if p.assigned_agent else "Oficina",
                 "agent_phone": p.assigned_agent.phone_mobile if p.assigned_agent else None,
+                "link": f"https://app.inmobiliarias.ai/p/{p.code}" if p.code else None,
                 "maps_link": f"https://www.google.com/maps/search/?api=1&query={p.lat},{p.lng}" if p.lat and p.lng else None,
                 "features": ", ".join(p.attributes) if p.attributes else "",
                 "description": (p.description or "")[:150] + "..."
@@ -221,8 +222,17 @@ class BotEngine:
             if contact.lead_score < 100:
                 contact.lead_score = min(contact.lead_score + 5, 100)
                 
+            # Generar embedding del nuevo perfil para Reverse Matching
+            try:
+                from routers import ai_service
+                pref_vec = ai_service.get_embedding(contact.notes)
+                if pref_vec:
+                    contact.embedding_preferences = pref_vec
+            except Exception as e:
+                logger.error(f"Error generating embedding for lead pref: {e}")
+                
             self.db.commit()
-            return "Perfil de cliente enriquecido en el CRM exitosamente."
+            return "Perfil de cliente enriquecido en el CRM exitosamente. Ahora el sistema de IA emparejará estas preferencias con el catálogo."
         except Exception as e:
             logger.error(f"Lead Pref Update Error: {e}")
             return "Error al guardar el perfil en el CRM."

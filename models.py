@@ -146,6 +146,9 @@ class Contact(Base):
     last_contact_date = Column(DateTime(timezone=True), nullable=True)
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc))
+    
+    # IA Column
+    embedding_preferences = Column(Vector(768), nullable=True)
 
 class Property(Base):
     __tablename__ = "properties"

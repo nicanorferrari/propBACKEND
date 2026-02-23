@@ -83,6 +83,42 @@ def match_lead_interest(query: str = Query(..., min_length=3), db: Session = Dep
         "matches": final_matches
     }
 
+@router.get("/reverse-match")
+def match_property_to_leads(entity_id: int, entity_type: str = "PROPERTY", db: Session = Depends(get_db)):
+    """
+    Busca contactos (Leads) cuyos 'embedding_preferences' coincidan de manera inversa 
+    con el embedding de esta propiedad/emprendimiento.
+    """
+    if entity_type == "PROPERTY":
+        entity = db.query(models.Property).filter(models.Property.id == entity_id).first()
+        vec = entity.embedding_descripcion if entity else None
+    elif entity_type == "DEVELOPMENT":
+        entity = db.query(models.Development).filter(models.Development.id == entity_id).first()
+        vec = entity.embedding_proyecto if entity else None
+    else:
+        raise HTTPException(400, "Invalid entity_type")
+
+    if not vec:
+        raise HTTPException(404, "Entity missing vector embedding. Cannot reverse match yet.")
+
+    sql = text("""
+        SELECT id, name, phone, email, notes, lead_score, status,
+        (1 - (embedding_preferences <=> :vec)) as score
+        FROM contacts
+        WHERE embedding_preferences IS NOT NULL
+        ORDER BY score DESC
+        LIMIT 10
+    """)
+    
+    results = db.execute(sql, {"vec": str(vec)}).fetchall()
+    matches = [dict(r._mapping) for r in results]
+    
+    return {
+        "entity_id": entity_id,
+        "type": entity_type,
+        "matches": matches
+    }
+
 @router.post("/send-recommendation")
 async def send_recommendation_whatsapp(
     contact_id: int, 

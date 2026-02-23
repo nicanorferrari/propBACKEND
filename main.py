@@ -124,6 +124,7 @@ async def lifespan(app: FastAPI):
                 "ALTER TABLE contacts ADD COLUMN IF NOT EXISTS lead_score INTEGER DEFAULT 50;",
                 "ALTER TABLE contacts ADD COLUMN IF NOT EXISTS lead_sentiment VARCHAR DEFAULT 'NEUTRAL';",
                 "ALTER TABLE contacts ADD COLUMN IF NOT EXISTS drip_campaign_active BOOLEAN DEFAULT FALSE;",
+                "ALTER TABLE contacts ADD COLUMN IF NOT EXISTS embedding_preferences vector(768);",
                 "CREATE TABLE IF NOT EXISTS bots (id SERIAL PRIMARY KEY, user_id INTEGER, platform VARCHAR, instance_name VARCHAR, system_prompt TEXT, business_hours JSONB, tags JSONB, config JSONB, status VARCHAR, is_active BOOLEAN, created_at TIMESTAMP, updated_at TIMESTAMP);",
             ]
             
