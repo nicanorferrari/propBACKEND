@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Body, Request, Background
 from sqlalchemy.orm import Session
 from database import get_db
 from auth import get_current_user_email
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import time
 import models
 import json
@@ -233,7 +233,7 @@ async def evolution_webhook(request: Request, background_tasks: BackgroundTasks,
             db.flush()
         
         # Update Last Contact Date (ALWAYS)
-        contact.last_contact_date = datetime.utcnow()
+        contact.last_contact_date = datetime.now(timezone.utc)
         db.add(contact)
 
         # Log Message
@@ -246,7 +246,7 @@ async def evolution_webhook(request: Request, background_tasks: BackgroundTasks,
             recent_log = db.query(models.ActivityLog).filter(
                 models.ActivityLog.entity_id == contact.id,
                 models.ActivityLog.action == "WHATSAPP_SENT",
-                models.ActivityLog.timestamp >= datetime.utcnow() - timedelta(seconds=10),
+                models.ActivityLog.timestamp >= datetime.now(timezone.utc) - timedelta(seconds=10),
                 models.ActivityLog.description == f"{desc_prefix}{message_text}"
             ).first()
             if recent_log:
@@ -440,7 +440,7 @@ def send_whatsapp_message(
         ))
         
         # Update last_contact_date
-        contact.last_contact_date = datetime.utcnow()
+        contact.last_contact_date = datetime.now(timezone.utc)
         db.add(contact)
         
         db.commit()

@@ -165,7 +165,6 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(title="UrbanoCRM AI-SaaS", lifespan=lifespan)
-socket_app = socketio.ASGIApp(sio, other_asgi_app=app)
 
 app.add_middleware(
     CORSMiddleware,
@@ -221,5 +220,5 @@ async def test_socket(user_id: str):
     await send_notification(user_id, data)
     return {"status": "sent", "user": user_id, "data": data}
 
-def get_wsgi_app():
-    return socket_app
+# Wrap FastAPI application with Socket.IO ASGI application
+app = socketio.ASGIApp(sio, other_asgi_app=app)

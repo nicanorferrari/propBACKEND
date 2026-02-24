@@ -144,3 +144,7 @@ message: "The provided API key has an IP address restriction. The originating IP
 ]
 2026-02-14 10:37:56,331 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":404,"error":"Not Found","response":{"message":["The \"user_11_crm\" instance does not exist"]}}
 2026-02-14 10:38:02,464 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":400,"error":"Bad Request","response":{"message":[["instance requires property \"webhook\""]]}}
+2026-02-23 19:42:04,490 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":500,"error":"Internal Server Error","response":{"message":"Connection Closed"}}
+2026-02-23 19:42:04,490 - urbanocrm.whatsapp - ERROR - Evolution API send failed (/message/sendText/user_11_crm): {'status': 500, 'error': 'Internal Server Error', 'response': {'message': 'Connection Closed'}}
+2026-02-23 19:42:09,204 - urbanocrm.whatsapp - ERROR - Evolution API Error Body: {"status":500,"error":"Internal Server Error","response":{"message":"Connection Closed"}}
+2026-02-23 19:42:09,204 - urbanocrm.whatsapp - ERROR - Evolution API send failed (/message/sendText/user_11_crm): {'status': 500, 'error': 'Internal Server Error', 'response': {'message': 'Connection Closed'}}

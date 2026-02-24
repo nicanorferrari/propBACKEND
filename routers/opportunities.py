@@ -161,7 +161,13 @@ def move_deal(deal_id: int, stage_id: int, db: Session = Depends(get_db), email:
         
     previous_stage_id = db_deal.pipeline_stage_id
     db_deal.pipeline_stage_id = stage_id
-    db_deal.updated_at = datetime.datetime.utcnow()
+    db_deal.updated_at = datetime.datetime.now(datetime.timezone.utc)
+    
+    if db_deal.contact_id:
+        contact = db.query(models.Contact).filter(models.Contact.id == db_deal.contact_id).first()
+        if contact:
+            contact.last_contact_date = datetime.datetime.now(datetime.timezone.utc)
+            db.add(contact)
     
     # Record History
     db_history = models.DealHistory(
@@ -215,7 +221,14 @@ def mark_deal_won(deal_id: int, db: Session = Depends(get_db), email: str = Depe
         raise HTTPException(status_code=404, detail="Deal not found")
         
     db_deal.status = "WON"
-    db_deal.updated_at = datetime.datetime.utcnow()
+    db_deal.updated_at = datetime.datetime.now(datetime.timezone.utc)
+    
+    if db_deal.contact_id:
+        contact = db.query(models.Contact).filter(models.Contact.id == db_deal.contact_id).first()
+        if contact:
+            contact.last_contact_date = datetime.datetime.now(datetime.timezone.utc)
+            db.add(contact)
+            
     db.commit()
     return db.query(models.Deal).options(
         joinedload(models.Deal.property),
@@ -237,7 +250,14 @@ def mark_deal_lost(deal_id: int, db: Session = Depends(get_db), email: str = Dep
         raise HTTPException(status_code=404, detail="Deal not found")
         
     db_deal.status = "LOST"
-    db_deal.updated_at = datetime.datetime.utcnow()
+    db_deal.updated_at = datetime.datetime.now(datetime.timezone.utc)
+    
+    if db_deal.contact_id:
+        contact = db.query(models.Contact).filter(models.Contact.id == db_deal.contact_id).first()
+        if contact:
+            contact.last_contact_date = datetime.datetime.now(datetime.timezone.utc)
+            db.add(contact)
+            
     db.commit()
     return db.query(models.Deal).options(
         joinedload(models.Deal.property),
@@ -275,7 +295,14 @@ def update_deal(deal_id: int, deal_update: schemas.DealUpdate, db: Session = Dep
     for key, value in update_data.items():
         setattr(db_deal, key, value)
     
-    db_deal.updated_at = datetime.datetime.utcnow()
+    db_deal.updated_at = datetime.datetime.now(datetime.timezone.utc)
+    
+    if db_deal.contact_id:
+        contact = db.query(models.Contact).filter(models.Contact.id == db_deal.contact_id).first()
+        if contact:
+            contact.last_contact_date = datetime.datetime.now(datetime.timezone.utc)
+            db.add(contact)
+            
     db.commit()
     return db.query(models.Deal).options(
         joinedload(models.Deal.property),

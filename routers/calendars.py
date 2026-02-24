@@ -9,7 +9,7 @@ import models, schemas
 from routers.google import get_valid_google_token
 import requests
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 router = APIRouter()
 
@@ -31,7 +31,7 @@ def create_event(data: schemas.EventCreate, db: Session = Depends(get_db), curre
     if data.contact_id:
         contact = db.query(models.Contact).filter(models.Contact.id == data.contact_id).first()
         if contact:
-            contact.last_contact_date = datetime.utcnow()
+            contact.last_contact_date = datetime.now(timezone.utc)
             db.add(contact)
             
     db.commit()
@@ -106,6 +106,12 @@ def update_event(id: int, data: schemas.EventCreate, db: Session = Depends(get_d
         
     for key, value in data.dict().items():
         setattr(event, key, value)
+
+    if event.contact_id:
+        contact = db.query(models.Contact).filter(models.Contact.id == event.contact_id).first()
+        if contact:
+            contact.last_contact_date = datetime.now(timezone.utc)
+            db.add(contact)
         
     db.commit()
     db.refresh(event)
