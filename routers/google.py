@@ -2,7 +2,7 @@
 import os, requests, base64
 from email.mime.text import MIMEText
 from typing import Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from database import get_db
@@ -93,7 +93,7 @@ def get_google_calendar_events(current_email: str = Depends(get_current_user_ema
     res = requests.get(
         "https://www.googleapis.com/calendar/v3/calendars/primary/events",
         headers={"Authorization": f"Bearer {token}"},
-        params={"timeMin": datetime.utcnow().isoformat() + "Z", "maxResults": 50, "singleEvents": True, "orderBy": "startTime"}
+        params={"timeMin": datetime.now(timezone.utc).isoformat(), "maxResults": 50, "singleEvents": True, "orderBy": "startTime"}
     )
     if not res.ok:
         return {"items": []}
@@ -145,7 +145,7 @@ def get_agency_calendar_events(current_email: str = Depends(get_current_user_ema
         res = requests.get(
             "https://www.googleapis.com/calendar/v3/calendars/primary/events",
             headers={"Authorization": f"Bearer {token}"},
-            params={"timeMin": datetime.utcnow().isoformat() + "Z", "maxResults": 50, "singleEvents": True, "orderBy": "startTime"}
+            params={"timeMin": datetime.now(timezone.utc).isoformat(), "maxResults": 50, "singleEvents": True, "orderBy": "startTime"}
         )
         if not res.ok:
             return {"items": []}

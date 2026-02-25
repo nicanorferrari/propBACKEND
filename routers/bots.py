@@ -62,47 +62,24 @@ def get_bot_config(platform: str, email: str = Depends(get_current_user_email), 
             "system_prompt": DEFAULT_BOT_IDENTITY,
             "business_hours": get_default_business_hours(),
             "tags": [],
-            "instance_name": None,
+            "instance_name": f"whatsapp_cloud_{user.id}",
             "config": { "voice": {"enabled": True, "voice_name": "Kore"}, "notifications": {"remind_1d": False, "remind_1h": True} }
         }
     
-    # Asegurar nombre de instancia estándar
-    instance_name = f"urbano_crm_user_{user.id}"
+    instance_name = f"whatsapp_cloud_{user.id}"
     if bot.instance_name != instance_name:
         bot.instance_name = instance_name
         db.commit()
     
-    # Verificar estado real
-    qr_code = None
-    state_resp = call_evolution("GET", f"/instance/connectionState/{instance_name}")
+    # WA Cloud API doesn't need QR, if environment variables exist, we assume 'connected' 
+    WA_ACCESS_TOKEN = os.getenv("WA_ACCESS_TOKEN", "").strip()
+    new_status = "connected" if WA_ACCESS_TOKEN else "disconnected"
     
-    new_status = "disconnected"
-    if state_resp and state_resp.status_code == 200:
-        state_data = state_resp.json()
-        current_state = state_data.get("instance", {}).get("state") or state_data.get("state")
-        
-        if current_state == "open":
-            new_status = "connected"
-        elif current_state in ["connecting", "connecting_delay", "close"]:
-            new_status = "connecting"
-            # Si estamos conectando, intentamos recuperar el QR
-            connect_resp = call_evolution("GET", f"/instance/connect/{instance_name}")
-            if connect_resp and connect_resp.status_code == 200:
-                c_data = connect_resp.json()
-                qr_code = (
-                    c_data.get("base64") or 
-                    c_data.get("qrcode", {}).get("base64") or 
-                    c_data.get("instance", {}).get("data") or
-                    c_data.get("code")
-                )
-    
-    # Si detectamos un cambio de estado, actualizamos la DB
     if bot.status != new_status:
         bot.status = new_status
         db.commit()
         db.refresh(bot)
             
-    # Convertir a dict para incluir qrCode
     bot_dict = {
         "id": bot.id,
         "platform": bot.platform,
@@ -110,10 +87,10 @@ def get_bot_config(platform: str, email: str = Depends(get_current_user_email), 
         "system_prompt": bot.system_prompt or DEFAULT_BOT_IDENTITY,
         "business_hours": bot.business_hours or get_default_business_hours(),
         "tags": bot.tags or [],
-        "config": bot.config or { "voice": {"enabled": True, "voice_name": "Kore"}, "notifications": {"remind_1d": False, "remind_1h": True} }, # Ensure dict
+        "config": bot.config or { "voice": {"enabled": True, "voice_name": "Kore"}, "notifications": {"remind_1d": False, "remind_1h": True} },
         "instance_name": bot.instance_name,
         "is_active": bot.is_active,
-        "qrCode": qr_code
+        "qrCode": None
     }
                 
     return bot_dict
@@ -152,107 +129,23 @@ def connect_bot(request: schemas.BotConnectRequest, email: str = Depends(get_cur
         db.add(bot)
         db.flush()
 
-    # Nombre de instancia estándar por usuario
-    instance_name = f"urbano_crm_user_{user.id}"
+    instance_name = f"whatsapp_cloud_{user.id}"
     bot.instance_name = instance_name
+    bot.status = "connected" if os.getenv("WA_ACCESS_TOKEN") else "disconnected"
     db.commit()
 
-    # 1. Verificar estado actual
-    state_resp = call_evolution("GET", f"/instance/connectionState/{instance_name}")
-    if state_resp and state_resp.status_code == 200:
-        state_data = state_resp.json()
-        current_state = state_data.get("instance", {}).get("state") or state_data.get("state")
-        if current_state == "open":
-            bot.status = "connected"
-            db.commit()
-            return {"qrCode": None, "instanceName": instance_name, "status": "connected"}
-
-    # 2. Asegurar que la instancia existe (intentar crear)
-    create_payload = {
-        "instanceName": instance_name,
-        "token": f"bot_tk_{user.id}",
-        "qrcode": True,
-        "integration": "WHATSAPP-BAILEYS",
-        "webhook": {
-            "enabled": True,
-            "url": BOT_WEBHOOK_URL,
-            "events": ["MESSAGES_UPSERT", "CONNECTION_UPDATE"]
-        }
-    }
-    create_resp = call_evolution("POST", "/instance/create", create_payload)
-    
-    # Manejar caso de éxito o si ya existe (403 suele ser 'ya existe')
-    if create_resp and create_resp.status_code in [200, 201]:
-        data = create_resp.json()
-        # Búsqueda exhaustiva del QR en el JSON de creación
-        qr = (
-            data.get("instance", {}).get("data") or 
-            data.get("qrcode", {}).get("base64") or 
-            data.get("base64") or 
-            data.get("code")
-        )
-        if qr:
-            bot.status = "connecting"
-            db.commit()
-            return {"qrCode": qr, "instanceName": instance_name, "status": "connecting"}
-    elif create_resp and create_resp.status_code != 403:
-        error_msg = create_resp.text
-        logger.error(f"Error creando instancia: {create_resp.status_code} - {error_msg}")
-        raise HTTPException(500, f"Error en Evolution API: {error_msg}")
-
-    # 3. Si ya existía o no vino el QR, pedirlo explícitamente
-    import time
-    time.sleep(1) 
-    connect_resp = call_evolution("GET", f"/instance/connect/{instance_name}")
-    if connect_resp and connect_resp.status_code == 200:
-        data = connect_resp.json()
-        # Búsqueda exhaustiva del QR en el JSON de conexión
-        qr = (
-            data.get("base64") or 
-            data.get("qrcode", {}).get("base64") or 
-            data.get("instance", {}).get("data") or
-            data.get("code")
-        )
-        if qr:
-            bot.status = "connecting"
-            db.commit()
-            return {"qrCode": qr, "instanceName": instance_name, "status": "connecting"}
-    elif connect_resp:
-        logger.error(f"Error al conectar: {connect_resp.status_code} - {connect_resp.text}")
-
-    # Verificación final de estado
-    state_resp = call_evolution("GET", f"/instance/connectionState/{instance_name}")
-    if state_resp and state_resp.status_code == 200:
-        state_data = state_resp.json()
-        if (state_data.get("instance", {}).get("state") or state_data.get("state")) == "open":
-            bot.status = "connected"
-            db.commit()
-            return {"qrCode": None, "instanceName": instance_name, "status": "connected"}
-
-    raise HTTPException(500, "No se pudo obtener el QR. Por favor, asegúrate de que Evolution API esté activa.")
+    return {"qrCode": None, "instanceName": instance_name, "status": bot.status}
 
 @router.post("/disconnect")
 def disconnect_bot(request: schemas.BotConnectRequest, email: str = Depends(get_current_user_email), db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == email).first()
     bot = db.query(models.Bot).filter(models.Bot.user_id == user.id, models.Bot.platform == request.platform).first()
     
-    if not bot or not bot.instance_name:
-        raise HTTPException(400, "No hay instancia activa para desconectar")
-
-    # 1. Intentar hacer logout/delete en Evolution API
-    print(f"DEBUG: Intentando borrar instancia {bot.instance_name} en Evolution API")
-    del_resp = call_evolution("DELETE", f"/instance/delete/{bot.instance_name}")
-    if del_resp:
-        print(f"DEBUG: Respuesta Evolution API: {del_resp.status_code} - {del_resp.text}")
-    else:
-        print("DEBUG: Evolution API no respondió o el request falló")
-    
-    # 2. Actualizar DB independientemente del resultado de la API para permitir reintento
     bot.status = "disconnected"
     bot.qrCode = None
     db.commit()
     
-    return {"status": "ok", "message": "Instancia desconectada"}
+    return {"status": "ok", "message": "Instancia desconectada localmente (Cloud API requiere remover token en .env)"}
 
 # --- New Bot Logic Endpoints ---
 

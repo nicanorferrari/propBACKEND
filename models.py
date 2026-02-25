@@ -69,7 +69,7 @@ class MonitoringLog(Base):
     end_time = Column(DateTime)
     duration_seconds = Column(Integer)
     is_idle = Column(Boolean, default=False)
-    timestamp = Column(DateTime, default=datetime.datetime.utcnow)
+    timestamp = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
 
 class Branch(Base):
     __tablename__ = "branches"
@@ -87,7 +87,7 @@ class ActivityLog(Base):
     entity_type = Column(String) # PROPERTY, CONTACT, EVENT, DEVELOPMENT
     entity_id = Column(Integer, nullable=True)
     description = Column(String)
-    timestamp = Column(DateTime, default=datetime.datetime.utcnow)
+    timestamp = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
 
 class CalendarEvent(Base):
     __tablename__ = "calendar_events"
@@ -328,8 +328,8 @@ class Bot(Base):
     config = Column(JSON, default={})
     status = Column(String, default="disconnected")
     is_active = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc), onupdate=lambda: datetime.datetime.now(datetime.timezone.utc))
 
 class WhatsappBuffer(Base):
     __tablename__ = "whatsapp_buffer"
@@ -338,7 +338,7 @@ class WhatsappBuffer(Base):
     sender_id = Column(String(255), nullable=False)
     message_content = Column(Text, nullable=True)
     status = Column(String(50), default='pending')
-    received_at = Column(DateTime, default=datetime.datetime.utcnow)
+    received_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
     instance = Column(String(250), nullable=True)
     file_url = Column(String(250), nullable=True)
 
@@ -347,7 +347,7 @@ class WhatsappBuffer(Base):
 class BotConversation(Base):
     __tablename__ = "bot_conversations"
     phone = Column(String, primary_key=True) # remote_jid
-    last_message_at = Column(DateTime, default=datetime.datetime.utcnow)
+    last_message_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
     last_sender = Column(String) # 'user', 'bot'
     followup_sent = Column(Boolean, default=False)
 
@@ -357,7 +357,7 @@ class ChatHistory(Base):
     sender_id = Column(String, index=True)
     role = Column(String)
     parts = Column(JSON)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
 
 class Pipeline(Base):
     __tablename__ = "pipelines"
@@ -365,7 +365,7 @@ class Pipeline(Base):
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True)
     name = Column(String)
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
     
     stages = relationship("PipelineStage", back_populates="pipeline", order_by="PipelineStage.order")
 
@@ -398,8 +398,8 @@ class Deal(Base):
     requirements = Column(Text, nullable=True) # Lo que busca el cliente
     
     close_date = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc), onupdate=lambda: datetime.datetime.now(datetime.timezone.utc))
 
     stage = relationship("PipelineStage", back_populates="deals")
     property = relationship("Property")
@@ -414,7 +414,7 @@ class DealComment(Base):
     deal_id = Column(Integer, ForeignKey("deals.id", ondelete="CASCADE"))
     user_id = Column(Integer, ForeignKey("users.id"))
     content = Column(Text)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
     
     deal = relationship("Deal", back_populates="comments")
     user = relationship("User")
@@ -426,7 +426,7 @@ class DealHistory(Base):
     from_stage_id = Column(Integer, ForeignKey("pipeline_stages.id"), nullable=True)
     to_stage_id = Column(Integer, ForeignKey("pipeline_stages.id"))
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
     
     deal = relationship("Deal", back_populates="history")
     from_stage = relationship("PipelineStage", foreign_keys=[from_stage_id])

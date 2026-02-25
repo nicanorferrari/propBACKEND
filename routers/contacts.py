@@ -49,7 +49,7 @@ def create_contact(contact: schemas.ContactCreate, db: Session = Depends(get_db)
                 msg = "Phone already registered"
             raise HTTPException(status_code=400, detail=msg)
 
-    db_contact = models.Contact(**contact.dict(), created_by_id=user.id, tenant_id=user.tenant_id)
+    db_contact = models.Contact(**contact.model_dump(), created_by_id=user.id, tenant_id=user.tenant_id)
     db.add(db_contact)
     db.commit()
     db.refresh(db_contact)
@@ -130,7 +130,7 @@ def create_interaction(id: int, interaction: schemas.InteractionCreate, db: Sess
     contact = db.query(models.Contact).filter(models.Contact.id == id, models.Contact.tenant_id == user.tenant_id).first()
     if not contact: raise HTTPException(404, "Contact not found")
     
-    data = interaction.dict(exclude_unset=True)
+    data = interaction.model_dump(exclude_unset=True)
     if "contact_id" in data: del data["contact_id"]
     
     db_interaction = models.ContactInteraction(

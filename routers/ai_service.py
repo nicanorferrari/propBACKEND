@@ -1,6 +1,6 @@
 
 import os
-import google.generativeai as genai
+from google import genai
 from typing import List
 import logging
 
@@ -8,8 +8,12 @@ logger = logging.getLogger("urbanocrm.ai_service")
 
 # Configurar API Key de Gemini
 API_KEY = os.getenv("API_KEY")
+client = None
 if API_KEY:
-    genai.configure(api_key=API_KEY)
+    try:
+        client = genai.Client(api_key=API_KEY)
+    except Exception as e:
+        logger.error(f"Failed to initialize Gemini client: {e}")
 
 def generate_property_context_string(prop) -> str:
     """
@@ -42,17 +46,21 @@ def get_embedding(text: str, task_type: str = "retrieval_query") -> List[float]:
     """
     Llama a Gemini API para obtener el vector de embedding 004.
     """
-    if not API_KEY or not text:
+    if not client or not text:
         return None
     
     try:
-        result = genai.embed_content(
-            model="models/gemini-embedding-001",
-            content=text,
-            task_type=task_type,
-            output_dimensionality=768
+        # Using google-genai Client API
+        result = client.models.embed_content(
+            model="models/gemini-embedding-001", # You can update to text-embedding-004 if desired
+            contents=text,
+            config={
+                "task_type": task_type.upper(), 
+                "output_dimensionality": 768
+            }
         )
-        return result['embedding']
+        # Returns EmbedContentResponse
+        return result.embeddings[0].values
     except Exception as e:
         logger.error(f"AI ERROR: Failed to get embedding from Gemini: {e}")
         return None
