@@ -74,6 +74,7 @@ class MonitoringLog(Base):
 class Branch(Base):
     __tablename__ = "branches"
     id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True)
     name = Column(String)
     address = Column(String)
     phone = Column(String, nullable=True)
