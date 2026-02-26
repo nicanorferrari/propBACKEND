@@ -24,6 +24,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
             "id": user.id, 
             "email": user.email, 
             "role": user.role, 
+            "tenant_id": user.tenant_id or 1,
             "name": f"{user.first_name} {user.last_name}", 
             "avatar_url": user.avatar_url
         }

@@ -62,7 +62,7 @@ def generate_portal_xml_feed(tenant_id: int, portal_name: str, db: Session = Dep
         ET.SubElement(features_xml, "surface_covered").text = str(prop.surface_covered or 0)
         ET.SubElement(features_xml, "bedrooms").text = str(prop.bedrooms or 0)
         ET.SubElement(features_xml, "bathrooms").text = str(prop.bathrooms or 0)
-        ET.SubElement(features_xml, "garages").text = str(prop.garages_total or prop.garages or 0)
+        ET.SubElement(features_xml, "garages").text = str(prop.garages_total or 0)
         ET.SubElement(features_xml, "rooms").text = str(prop.rooms or 0)
         ET.SubElement(features_xml, "condition").text = str(prop.condition or "")
 

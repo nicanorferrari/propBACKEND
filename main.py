@@ -197,7 +197,7 @@ app.include_router(monitoring.router, prefix="/api/monitoring", tags=["Monitoreo
 app.include_router(ai_matching.router, prefix="/api/ai-matching", tags=["AI Intelligence"])
 app.include_router(bots.router, prefix="/api/bots", tags=["Bot Mastery"])
 app.include_router(opportunities.router, prefix="/api/opportunities", tags=["Oportunidades"])
-app.include_router(feed.router, prefix="/api/feed", tags=["Sindicación Portales"])
+app.include_router(feed.router, prefix="/api/feeds", tags=["Sindicación Portales"])
 
 @app.get("/")
 async def root():
