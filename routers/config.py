@@ -5,11 +5,13 @@ from sqlalchemy.orm import Session
 import models, schemas
 from database import get_db
 
+from auth import get_current_user_email
+
 router = APIRouter()
 
 # CONFIGURACIÓN DE AGENCIA (Privada)
 @router.get("/agency/config")
-def get_agency_config(db: Session = Depends(get_db)):
+def get_agency_config(db: Session = Depends(get_db), email: str = Depends(get_current_user_email)):
     conf = db.query(models.AgencyConfig).first()
     if not conf:
         conf = models.AgencyConfig(agency_name="Urbano Inmobiliaria")
@@ -19,7 +21,7 @@ def get_agency_config(db: Session = Depends(get_db)):
     return conf
 
 @router.put("/agency/config")
-def update_agency_config(data: schemas.AgencyConfigUpdate, db: Session = Depends(get_db)):
+def update_agency_config(data: schemas.AgencyConfigUpdate, db: Session = Depends(get_db), email: str = Depends(get_current_user_email)):
     conf = db.query(models.AgencyConfig).first()
     if not conf: raise HTTPException(404)
     for k, v in data.dict(exclude_unset=True).items(): setattr(conf, k, v)
@@ -36,12 +38,19 @@ def get_maps_key(db: Session = Depends(get_db)):
 
 # CONFIGURACIÓN ADMIN (Para el Super Admin)
 @router.get("/admin/config/google_maps_key")
-def get_admin_maps_key(db: Session = Depends(get_db)):
+def get_admin_maps_key(db: Session = Depends(get_db), email: str = Depends(get_current_user_email)):
+    # Simple auth check
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if user.role != "BROKER_ADMIN" and user.role != "SUPERADMIN":
+         raise HTTPException(status_code=403, detail="Forbidden")
     cfg = db.query(models.SystemConfig).filter(models.SystemConfig.key == "google_maps_key").first()
     return {"value": cfg.value if cfg else ""}
 
 @router.put("/admin/config/google_maps_key")
-def set_admin_maps_key(data: schemas.ConfigUpdate, db: Session = Depends(get_db)):
+def set_admin_maps_key(data: schemas.ConfigUpdate, db: Session = Depends(get_db), email: str = Depends(get_current_user_email)):
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if user.role != "BROKER_ADMIN" and user.role != "SUPERADMIN":
+         raise HTTPException(status_code=403, detail="Forbidden")
     cfg = db.query(models.SystemConfig).filter(models.SystemConfig.key == "google_maps_key").first()
     if not cfg:
         cfg = models.SystemConfig(key="google_maps_key", value=data.value)

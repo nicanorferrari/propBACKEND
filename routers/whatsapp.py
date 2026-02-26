@@ -62,8 +62,8 @@ def send_whatsapp_message(
     db: Session = Depends(get_db)
 ):
     user = db.query(models.User).filter(models.User.email == email).first()
-    contact = db.query(models.Contact).filter(models.Contact.id == contact_id).first()
-    if not contact or not contact.phone: raise HTTPException(404, "Contacto sin teléfono")
+    contact = db.query(models.Contact).filter(models.Contact.id == contact_id, models.Contact.tenant_id == user.tenant_id).first()
+    if not contact or not contact.phone: raise HTTPException(404, "Contacto sin teléfono o no encontrado")
 
     clean_phone = "".join(filter(str.isdigit, contact.phone))
     

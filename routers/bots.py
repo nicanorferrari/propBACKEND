@@ -351,10 +351,12 @@ def get_bot_public_config(instance_name: str, db: Session = Depends(get_db)):
     }
 
 @router.get("/conversations/list")
-def get_bot_conversations(skip: int = 0, limit: int = 20, db: Session = Depends(get_db)):
+def get_bot_conversations(skip: int = 0, limit: int = 20, db: Session = Depends(get_db), email: str = Depends(get_current_user_email)):
     """
     Lista las conversaciones activas del bot.
     """
+    user = db.query(models.User).filter(models.User.email == email).first()
+    # Idealmente filtrar por bot/tenant, por simplicidad:
     convs = db.query(models.BotConversation).order_by(models.BotConversation.last_message_at.desc()).offset(skip).limit(limit).all()
     
     result = []
@@ -372,6 +374,7 @@ def get_bot_conversations(skip: int = 0, limit: int = 20, db: Session = Depends(
         if raw_phone:
             search_suffix = raw_phone[-8:] if len(raw_phone) >= 8 else raw_phone
             contact = db.query(models.Contact).filter(
+                models.Contact.tenant_id == user.tenant_id,
                 func.regexp_replace(models.Contact.phone, '[^0-9]', '', 'g').ilike(f"%{search_suffix}")
             ).first()
             if contact:
@@ -382,7 +385,7 @@ def get_bot_conversations(skip: int = 0, limit: int = 20, db: Session = Depends(
     return result
 
 @router.get("/conversations/{phone}/messages")
-def get_conversation_messages(phone: str, limit: int = 50, db: Session = Depends(get_db)):
+def get_conversation_messages(phone: str, limit: int = 50, db: Session = Depends(get_db), email: str = Depends(get_current_user_email)):
     """
     Obtiene el historial de chat de una conversación específica.
     """

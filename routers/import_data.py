@@ -199,7 +199,11 @@ async def ingest_adinco_image(url: str) -> Dict[str, str]:
     except Exception: return None
 
 @router.post("/adinco/{agency_id}")
-async def import_adinco_xml(agency_id: str, db: Session = Depends(get_db)):
+async def import_adinco_xml(agency_id: str, db: Session = Depends(get_db), email: str = Depends(get_current_user_email)):
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
     # URL corregida según especificación del usuario
     xml_url = f"https://feeds.adinco.net/{agency_id}/ar_adinco.xml"
     
@@ -272,7 +276,8 @@ async def import_adinco_xml(agency_id: str, db: Session = Depends(get_db)):
                     lng=float(ad.findtext('longitude') or 0),
                     thumbnail_url=cover["thumb"] if cover else None,
                     gallery=gallery,
-                    status="CONSTRUCTION"
+                    status="CONSTRUCTION",
+                    tenant_id=user.tenant_id
                 )
                 db.add(new_dev); added_d += 1
             else:
@@ -299,7 +304,8 @@ async def import_adinco_xml(agency_id: str, db: Session = Depends(get_db)):
                     gallery=gallery,
                     lat=float(ad.findtext('latitude') or 0),
                     lng=float(ad.findtext('longitude') or 0),
-                    status="Active"
+                    status="Active",
+                    tenant_id=user.tenant_id
                 )
                 db.add(new_prop); added_p += 1
             

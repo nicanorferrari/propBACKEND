@@ -44,13 +44,21 @@ async def log_activity(
     db.commit()
     return {"status": "ok", "received": True, "user": user.email}
 
+from auth import get_current_user_email
+
 @router.get("/user/{user_id}")
 def get_user_logs(
     user_id: int, 
     start_date: Optional[date] = Query(None),
     end_date: Optional[date] = Query(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    email: str = Depends(get_current_user_email)
 ):
+    # Authenticate user
+    current_user = db.query(models.User).filter(models.User.email == email).first()
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
     query = db.query(models.MonitoringLog).filter(models.MonitoringLog.user_id == user_id)
     
     if start_date:
