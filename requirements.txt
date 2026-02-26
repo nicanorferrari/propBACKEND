@@ -15,7 +15,7 @@ Pillow
 greenlet
 minio
 email-validator
-google-generativeai
+google-genai
 pgvector
 python-dotenv
 pydantic-settings
