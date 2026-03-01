@@ -37,6 +37,7 @@ def get_public_property(code: str, db: Session = Depends(get_db)):
     if not prop:
         raise HTTPException(404, "Propiedad no encontrada")
     return prop
+
 @router.get("/minimal")
 def list_minimal_properties(db: Session = Depends(get_db), email: str = Depends(get_current_user_email)):
     user = db.query(models.User).filter(models.User.email == email).first()

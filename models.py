@@ -358,6 +358,8 @@ class ChatHistory(Base):
     sender_id = Column(String, index=True)
     role = Column(String)
     parts = Column(JSON)
+    media_url = Column(String, nullable=True)
+    media_type = Column(String, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
 
 class Pipeline(Base):

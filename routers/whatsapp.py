@@ -132,10 +132,17 @@ def logout_whatsapp(email: str = Depends(get_current_user_email), db: Session = 
 @router.get("/messages/{contact_id}")
 def get_contact_messages(contact_id: int, email: str = Depends(get_current_user_email), db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == email).first()
+    
+    # First verify the contact belongs to the tenant
+    contact = db.query(models.Contact).filter(models.Contact.id == contact_id, models.Contact.tenant_id == user.tenant_id).first()
+    if not contact:
+        raise HTTPException(status_code=404, detail="Contact not found")
+        
     logs = db.query(models.ActivityLog).filter(
         models.ActivityLog.entity_type == "CONTACT",
         models.ActivityLog.entity_id == contact_id,
         models.ActivityLog.action.in_(["WHATSAPP_SENT", "WHATSAPP_RECEIVED"])
+        # We don't necessarily filter by user.id here, because a contact's messages could be from any agent in the same tenant
     ).order_by(models.ActivityLog.timestamp.asc()).all()
 
     def parse_message(log):

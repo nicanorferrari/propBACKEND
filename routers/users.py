@@ -56,6 +56,8 @@ def get_activity(
     db: Session = Depends(get_db)
 ):
     user = db.query(models.User).filter(models.User.email == email).first()
+    # It seems ActivityLogs are per-user, but should probably be filtered to all team activity if they are an admin
+    # To keep it safe and avoid cross-tenant leakage, we filter by the user's ID
     query = db.query(models.ActivityLog).filter(models.ActivityLog.user_id == user.id)
     
     if entity_type:

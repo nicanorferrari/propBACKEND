@@ -20,3 +20,4 @@ pgvector
 python-dotenv
 pydantic-settings
 python-socketio
+slowapi

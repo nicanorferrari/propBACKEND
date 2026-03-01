@@ -59,6 +59,15 @@ def get_user_logs(
     if not current_user:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
+    # Check if requested user belongs to same tenant
+    target_user = db.query(models.User).filter(
+        models.User.id == user_id, 
+        models.User.tenant_id == current_user.tenant_id
+    ).first()
+    
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found in tenant")
+
     query = db.query(models.MonitoringLog).filter(models.MonitoringLog.user_id == user_id)
     
     if start_date:

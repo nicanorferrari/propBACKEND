@@ -77,7 +77,7 @@ def delete_event(id: int, db: Session = Depends(get_db), current_email: str = De
     # Necesitamos current_email para obtener el usuario y su token para borrar en Google
     user = db.query(models.User).filter(models.User.email == current_email).first()
     
-    event = db.query(models.CalendarEvent).filter(models.CalendarEvent.id == id).first()
+    event = db.query(models.CalendarEvent).filter(models.CalendarEvent.id == id, models.CalendarEvent.tenant_id == user.tenant_id).first()
     if not event: raise HTTPException(404)
     
     # INTENTO DELETE GOOGLE
@@ -99,7 +99,7 @@ def delete_event(id: int, db: Session = Depends(get_db), current_email: str = De
 @router.put("/events/{id}", response_model=schemas.EventResponse)
 def update_event(id: int, data: schemas.EventCreate, db: Session = Depends(get_db), current_email: str = Depends(get_current_user_email)):
     user = db.query(models.User).filter(models.User.email == current_email).first()
-    event = db.query(models.CalendarEvent).filter(models.CalendarEvent.id == id).first()
+    event = db.query(models.CalendarEvent).filter(models.CalendarEvent.id == id, models.CalendarEvent.tenant_id == user.tenant_id).first()
     
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
@@ -108,7 +108,7 @@ def update_event(id: int, data: schemas.EventCreate, db: Session = Depends(get_d
         setattr(event, key, value)
 
     if event.contact_id:
-        contact = db.query(models.Contact).filter(models.Contact.id == event.contact_id).first()
+        contact = db.query(models.Contact).filter(models.Contact.id == event.contact_id, models.Contact.tenant_id == user.tenant_id).first()
         if contact:
             contact.last_contact_date = datetime.now(timezone.utc)
             db.add(contact)

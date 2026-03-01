@@ -1,5 +1,5 @@
-
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 import models, schemas
@@ -8,8 +8,17 @@ from auth import create_access_token, verify_password, get_password_hash
 
 router = APIRouter()
 
+from fastapi import Request
+from rate_limiter import limiter
+
+import os
+
+# Check if we are in production (from frontend env or backend env)
+IS_PRODUCTION = os.getenv("VITE_PRODUCCION", "false").lower() == "true"
+
 @router.post("/login")
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def login(request: Request, response: Response, form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == form_data.username).first()
     if not user: raise HTTPException(401, "Usuario no encontrado")
     
@@ -17,7 +26,8 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
         raise HTTPException(401, "Contraseña incorrecta")
         
     token = create_access_token(data={"sub": user.email})
-    return {
+    
+    resp_data = {
         "access_token": token, 
         "token_type": "bearer", 
         "user": {
@@ -29,14 +39,27 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
             "avatar_url": user.avatar_url
         }
     }
+    
+    # Inyectar cookie HttpOnly (secure depende del entorno)
+    response = JSONResponse(content=resp_data)
+    response.set_cookie(
+        key="access_token",
+        value=token,
+        httponly=True,
+        secure=IS_PRODUCTION,
+        samesite="strict",
+        max_age=7 * 24 * 60 * 60 # 7 dias
+    )
+    return response
 
 @router.post("/demo-login/{role_slug}")
-def demo_login(role_slug: str, db: Session = Depends(get_db)):
+def demo_login(role_slug: str, response: Response, db: Session = Depends(get_db)):
     email = f"{role_slug.lower()}@urbano-crm.com"
     user = db.query(models.User).filter(models.User.email == email).first()
     if not user: raise HTTPException(404, "Demo user not found")
     token = create_access_token(data={"sub": user.email})
-    return {
+    
+    resp_data = {
         "access_token": token, 
         "token_type": "bearer", 
         "user": {
@@ -47,6 +70,24 @@ def demo_login(role_slug: str, db: Session = Depends(get_db)):
             "avatar_url": user.avatar_url
         }
     }
+    
+    response = JSONResponse(content=resp_data)
+    response.set_cookie(
+        key="access_token",
+        value=token,
+        httponly=True,
+        secure=IS_PRODUCTION,
+        samesite="strict",
+        max_age=7 * 24 * 60 * 60
+    )
+    return response
+
+@router.post("/logout")
+def logout(response: Response):
+    response = JSONResponse(content={"message": "Sesión cerrada correctamente"})
+    response.delete_cookie(key="access_token", httponly=True, secure=IS_PRODUCTION, samesite="strict")
+    return response
+
 @router.post("/register")
 def register(user_data: schemas.UserCreate, db: Session = Depends(get_db)):
     # Check existing user

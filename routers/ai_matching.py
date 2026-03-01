@@ -136,9 +136,11 @@ async def send_recommendation_whatsapp(
     msg = ""
     if entity_type == 'PROPERTY':
         prop = db.query(models.Property).filter(models.Property.id == entity_id, models.Property.tenant_id == user.tenant_id).first()
+        if not prop: raise HTTPException(404, "Property not found")
         msg = f"Hola {contact.name}, basado en tu interés, creo que esta propiedad es ideal: {prop.address}. Valor: {prop.currency} {prop.price}. Ver ficha: https://urbanocrm.com/p/{prop.code}"
     else:
         dev = db.query(models.Development).filter(models.Development.id == entity_id, models.Development.tenant_id == user.tenant_id).first()
+        if not dev: raise HTTPException(404, "Development not found")
         msg = f"Hola {contact.name}, este nuevo proyecto en {dev.address} ({dev.name}) coincide con lo que buscas. Ver info: https://urbanocrm.com/d/{dev.code}"
 
     return {"status": "ok", "message_queued": msg}

@@ -105,6 +105,11 @@ def create_deal(deal: schemas.DealCreate, db: Session = Depends(get_db), email: 
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
+    # Optional check: deal.contact_id and deal.property_id belong to tenant
+    if deal.contact_id:
+        contact = db.query(models.Contact).filter(models.Contact.id == deal.contact_id, models.Contact.tenant_id == user.tenant_id).first()
+        if not contact: raise HTTPException(404, "Contact not found")
+    
     db_deal = models.Deal(**deal.dict(), tenant_id=user.tenant_id)
     db.add(db_deal)
     db.commit()
@@ -129,7 +134,7 @@ def create_deal(deal: schemas.DealCreate, db: Session = Depends(get_db), email: 
         db.add(db_interaction)
         
         # Update last_contact_date
-        db_contact = db.query(models.Contact).filter(models.Contact.id == db_deal.contact_id).first()
+        db_contact = db.query(models.Contact).filter(models.Contact.id == db_deal.contact_id, models.Contact.tenant_id == user.tenant_id).first()
         if db_contact:
             db_contact.last_contact_date = datetime.datetime.now(datetime.timezone.utc)
         
@@ -141,7 +146,7 @@ def create_deal(deal: schemas.DealCreate, db: Session = Depends(get_db), email: 
         joinedload(models.Deal.agent),
         joinedload(models.Deal.comments),
         joinedload(models.Deal.history)
-    ).filter(models.Deal.id == db_deal.id).first()
+    ).filter(models.Deal.id == db_deal.id, models.Deal.tenant_id == user.tenant_id).first()
 
 @router.put("/deals/{deal_id}/move", response_model=schemas.DealResponse)
 def move_deal(deal_id: int, stage_id: int, db: Session = Depends(get_db), email: str = Depends(get_current_user_email)):
@@ -155,7 +160,7 @@ def move_deal(deal_id: int, stage_id: int, db: Session = Depends(get_db), email:
         raise HTTPException(status_code=404, detail="Deal not found")
         
     # Verify stage exists and belongs to a pipeline (ideally check if same pipeline)
-    stage = db.query(models.PipelineStage).filter(models.PipelineStage.id == stage_id).first()
+    stage = db.query(models.PipelineStage).join(models.Pipeline).filter(models.PipelineStage.id == stage_id, models.Pipeline.tenant_id == user.tenant_id).first()
     if not stage:
         raise HTTPException(status_code=404, detail="Stage not found")
         
@@ -224,7 +229,7 @@ def mark_deal_won(deal_id: int, db: Session = Depends(get_db), email: str = Depe
     db_deal.updated_at = datetime.datetime.now(datetime.timezone.utc)
     
     if db_deal.contact_id:
-        contact = db.query(models.Contact).filter(models.Contact.id == db_deal.contact_id).first()
+        contact = db.query(models.Contact).filter(models.Contact.id == db_deal.contact_id, models.Contact.tenant_id == user.tenant_id).first()
         if contact:
             contact.last_contact_date = datetime.datetime.now(datetime.timezone.utc)
             db.add(contact)
@@ -253,7 +258,7 @@ def mark_deal_lost(deal_id: int, db: Session = Depends(get_db), email: str = Dep
     db_deal.updated_at = datetime.datetime.now(datetime.timezone.utc)
     
     if db_deal.contact_id:
-        contact = db.query(models.Contact).filter(models.Contact.id == db_deal.contact_id).first()
+        contact = db.query(models.Contact).filter(models.Contact.id == db_deal.contact_id, models.Contact.tenant_id == user.tenant_id).first()
         if contact:
             contact.last_contact_date = datetime.datetime.now(datetime.timezone.utc)
             db.add(contact)
@@ -277,6 +282,7 @@ def delete_deal(deal_id: int, db: Session = Depends(get_db), email: str = Depend
     
     # Dissociate contact interactions to avoid FK violation
     # Interactions are valuable history, so we keep them but remove the link
+    # Make sure we only affect interactions belonging to this deal (which inherently belongs to the tenant)
     db.query(models.ContactInteraction).filter(models.ContactInteraction.deal_id == deal_id).update({models.ContactInteraction.deal_id: None})
     
     db.delete(db_deal)
@@ -298,7 +304,7 @@ def update_deal(deal_id: int, deal_update: schemas.DealUpdate, db: Session = Dep
     db_deal.updated_at = datetime.datetime.now(datetime.timezone.utc)
     
     if db_deal.contact_id:
-        contact = db.query(models.Contact).filter(models.Contact.id == db_deal.contact_id).first()
+        contact = db.query(models.Contact).filter(models.Contact.id == db_deal.contact_id, models.Contact.tenant_id == user.tenant_id).first()
         if contact:
             contact.last_contact_date = datetime.datetime.now(datetime.timezone.utc)
             db.add(contact)

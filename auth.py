@@ -33,8 +33,9 @@ ACCESS_TOKEN_EXPIRE_MINUTES = settings.access_token_expire_minutes
 # Configuración de Hashing de contraseñas
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+from fastapi import Request
 # Esquema de seguridad OAuth2
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
 def verify_password(plain_password, hashed_password):
     """Verifica si la contraseña plana coincide con el hash."""
@@ -50,18 +51,19 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+        expire = datetime.now(timezone.utc) + timedelta(days=7) # Extendido a 7 días
     
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-async def get_current_user_email(token: str = Depends(oauth2_scheme)):
+async def get_current_user_email(request: Request, token: str = Depends(oauth2_scheme)):
     """
-    Decodifica el token y extrae el email (sub).
-    Nota: Para obtener el objeto usuario completo, se debe consultar la DB
-    usando este email en el endpoint correspondiente.
+    Decodifica el token (desde Header o Cookie) y extrae el email (sub).
     """
+    if not token:
+        token = request.cookies.get("access_token")
+        
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",

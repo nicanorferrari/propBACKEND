@@ -122,7 +122,10 @@ def list_interactions(id: int, db: Session = Depends(get_db), email: str = Depen
     contact = db.query(models.Contact).filter(models.Contact.id == id, models.Contact.tenant_id == user.tenant_id).first()
     if not contact: raise HTTPException(404, "Contact not found")
     
-    return db.query(models.ContactInteraction).filter(models.ContactInteraction.contact_id == id).order_by(models.ContactInteraction.date.desc()).all()
+    return db.query(models.ContactInteraction).join(models.Contact).filter(
+        models.ContactInteraction.contact_id == id,
+        models.Contact.tenant_id == user.tenant_id
+    ).order_by(models.ContactInteraction.date.desc()).all()
 
 @router.post("/{id}/interactions", response_model=schemas.InteractionResponse)
 def create_interaction(id: int, interaction: schemas.InteractionCreate, db: Session = Depends(get_db), email: str = Depends(get_current_user_email)):
